@@ -11,6 +11,27 @@ import { getDevices } from "@/lib/arduinoInit"
 import React from 'react'
 
 export default async function Page() {
+    // Fetch devices to calculate real-time metrics
+    const devices = await getDevices();
+    
+    // Calculate active PLCs (devices that are ONLINE)
+    const activePlcs = devices.filter(device => device.device_status === "ONLINE").length;
+    
+    // Calculate active alerts (devices that are offline or have warnings)
+    const activeAlerts = devices.filter(device => 
+        device.device_status !== "ONLINE" || !device.ota_available
+    ).length;
+    
+    // Determine system status
+    const offlineDevices = devices.filter(device => device.device_status !== "ONLINE").length;
+    const systemStatus = offlineDevices === 0 ? "Operational" : 
+                        offlineDevices < devices.length / 2 ? "Degraded" : "Critical";
+    const systemStatusColor = systemStatus === "Operational" ? "text-green-500" :
+                             systemStatus === "Degraded" ? "text-yellow-500" : "text-red-500";
+    const systemStatusMessage = systemStatus === "Operational" ? "All systems normal" :
+                               systemStatus === "Degraded" ? `${offlineDevices} device${offlineDevices > 1 ? 's' : ''} offline` :
+                               "Multiple systems down";
+
     return (
         <>
             <main className=' w-full h-full flex justify-center items-center  '>
@@ -27,18 +48,20 @@ export default async function Page() {
                                 <CircuitBoard className="h-4 w-4 text-maroon" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">24</div>
-                                <p className="text-xs text-muted-foreground">+2 from last month</p>
+                                <div className="text-2xl font-bold">{activePlcs}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {devices.length > 0 ? `${activePlcs} of ${devices.length} online` : 'No devices found'}
+                                </p>
                             </CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">System Status</CardTitle>
-                                <Activity className="h-4 w-4 text-green-500" />
+                                <Activity className={`h-4 w-4 ${systemStatusColor}`} />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">Operational</div>
-                                <p className="text-xs text-muted-foreground">All systems normal</p>
+                                <div className="text-2xl font-bold">{systemStatus}</div>
+                                <p className="text-xs text-muted-foreground">{systemStatusMessage}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -47,8 +70,12 @@ export default async function Page() {
                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">2</div>
-                                <p className="text-xs text-muted-foreground">Requires attention</p>
+                                <div className="text-2xl font-bold">{activeAlerts}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {activeAlerts === 0 ? 'No issues detected' : 
+                                     activeAlerts === 1 ? 'Requires attention' : 
+                                     'Multiple issues detected'}
+                                </p>
                             </CardContent>
                         </Card>
 
@@ -127,4 +154,3 @@ async function PLCTable() {
         </>
     )
 }
-
