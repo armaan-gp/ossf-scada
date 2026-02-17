@@ -60,7 +60,7 @@ export function AddUserForm() {
                             <FormControl>
                                 <Input placeholder="Enter full name" {...field} />
                             </FormControl>
-                            <FormMessage> {state?.errors?.name} </FormMessage>
+                            <FormMessage> {"errors" in state ? state.errors?.name : undefined} </FormMessage>
                         </FormItem>
                     )}
                 />
@@ -74,7 +74,7 @@ export function AddUserForm() {
                             <FormControl>
                                 <Input placeholder="user@tamu.org" {...field} />
                             </FormControl>
-                            <FormMessage> {state?.errors?.email} </FormMessage>
+                            <FormMessage> {"errors" in state ? state.errors?.email : undefined} </FormMessage>
                         </FormItem>
                     )}
                 />
@@ -88,7 +88,7 @@ export function AddUserForm() {
                             <FormControl>
                                 <Input  {...field} />
                             </FormControl>
-                            <FormMessage> {state?.errors?.password} </FormMessage>
+                            <FormMessage> {"errors" in state ? state.errors?.password : undefined} </FormMessage>
                         </FormItem>
                     )}
                 />
