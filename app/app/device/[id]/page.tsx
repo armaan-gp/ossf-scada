@@ -33,7 +33,7 @@ export default async function SystemDetailPage({
     }
 
     const device = JSON.parse(JSON.stringify(deviceData));
-
+    console.log(device); // checking device data
     if (!device.thing) {
         try {
             const thingData = await getThing(device.id);
@@ -80,15 +80,12 @@ export default async function SystemDetailPage({
                                 <dd className="text-sm font-semibold">{device.id}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-muted-foreground">Model</dt>
-                                <dd className="text-sm font-semibold">{device.type}</dd>
+                                <dt className="text-sm font-medium text-muted-foreground">Name</dt>
+                                <dd className="text-sm font-semibold flex items-center">{device.name}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-muted-foreground">Location</dt>
-                                <dd className="text-sm font-semibold flex items-center">
-                                    <MapPin className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
-                                    OSSF SCADA FACILITY
-                                </dd>
+                                <dt className="text-sm font-medium text-muted-foreground">Model</dt>
+                                <dd className="text-sm font-semibold">{device.type}</dd>
                             </div>
                             <div>
                                 <dt className="text-sm font-medium text-muted-foreground">Last Active</dt>
