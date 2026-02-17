@@ -76,27 +76,37 @@ export async function createUser(prevState: any, formData: FormData): Promise<Cr
   redirect("/app/user_management")
 }
 
-export async function updateUser(formData: FormData) {
+export async function updateUser(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const user = await getUser()
+  if (!user?.isAdmin) {
+    return { ok: false, error: "Not authorized to update users" }
+  }
+
   const id = parseInt(formData.get("id") as string)
-  const name = formData.get("name") as string
-  const email = formData.get("email") as string
+  const name = (formData.get("name") as string)?.trim()
+  const email = (formData.get("email") as string)?.trim()
   const isAdmin = formData.get("isAdmin") === "on"
 
   if (!id || !name || !email) {
-    throw new Error("Missing required fields")
+    return { ok: false, error: "Name and email are required" }
   }
 
-  await db
-    .update(usersTable)
-    .set({
-      name,
-      email,
-      isAdmin,
-    })
-    .where(eq(usersTable.id, id))
+  try {
+    await db
+      .update(usersTable)
+      .set({ name, email, isAdmin })
+      .where(eq(usersTable.id, id))
 
-  revalidatePath("/user_management")
-  redirect("/user_management")
+    revalidatePath("/app/user_management")
+    redirect("/app/user_management")
+    return { ok: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to update user"
+    if (msg.includes("unique") || msg.includes("duplicate")) {
+      return { ok: false, error: "Email is already in use" }
+    }
+    return { ok: false, error: msg }
+  }
 }
 
 export async function deleteUser(id: number) {

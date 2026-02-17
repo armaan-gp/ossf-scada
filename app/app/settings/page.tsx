@@ -1,10 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
 import { GmailAccountForm, SmsRecipientsForm } from "@/components/function/SmsConfigForm"
-import { getSmsConfig } from "@/app/actions/settings"
+import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
+import { getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
+import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
 
 export default async function SettingsPage() {
-  const smsConfig = await getSmsConfig()
+  const [smsConfig, plcs, thresholdsMap] = await Promise.all([
+    getSmsConfig(),
+    getPlcsWithProperties().catch(() => []),
+    getThresholdsMap(),
+  ])
 
   return (
     <div className="container mx-auto p-6">
@@ -46,15 +52,12 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Alert thresholds</CardTitle>
           <CardDescription>
-            Default placeholder ranges: FLOAT 3.0–3.5, INT 1–2. You can set per-property min/max in the database
-            (property_alert_thresholds table) or add a UI here later.
+            Optional min/max for INT and FLOAT properties. Leave blank to use defaults (FLOAT 3.0–3.5, INT 1–2).
+            Values outside range trigger alerts and SMS.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Values outside the configured range for INT or FLOAT properties trigger a red alert icon and, if SMS is
-            configured, a one-time SMS per alert episode.
-          </p>
+          <AlertThresholdsEditor plcs={plcs} initialThresholds={thresholdsMap} />
         </CardContent>
       </Card>
     </div>

@@ -157,6 +157,32 @@ export async function getAllPropertyThresholds(): Promise<PropertyThresholdRow[]
   }));
 }
 
+/** Delete a property threshold (revert to defaults). */
+export async function deletePropertyThreshold(thingId: string, propertyId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.delete(propertyAlertThresholdsTable).where(
+      and(
+        eq(propertyAlertThresholdsTable.thingId, thingId),
+        eq(propertyAlertThresholdsTable.propertyId, propertyId)
+      )
+    );
+    revalidatePath("/app/settings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to delete" };
+  }
+}
+
+/** Get thresholds as a map keyed by "thingId:propertyId" for easy lookup. */
+export async function getThresholdsMap(): Promise<Record<string, { min: number; max: number }>> {
+  const rows = await db.select().from(propertyAlertThresholdsTable);
+  const map: Record<string, { min: number; max: number }> = {};
+  for (const r of rows) {
+    map[`${r.thingId}:${r.propertyId}`] = { min: r.minValue, max: r.maxValue };
+  }
+  return map;
+}
+
 /** Save or update threshold for one property. */
 export async function savePropertyThreshold(
   thingId: string,
