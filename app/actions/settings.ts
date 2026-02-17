@@ -127,15 +127,15 @@ export async function clearAlertSmsRecord(thingId: string, propertyId: string): 
 export type PropertyThresholdRow = {
   thingId: string;
   propertyId: string;
-  minValue: number;
-  maxValue: number;
+  minValue: number | null;
+  maxValue: number | null;
 };
 
-/** Get threshold for a property; returns null if using defaults. */
+/** Get threshold for a property; returns null if no threshold is set. */
 export async function getPropertyThreshold(
   thingId: string,
   propertyId: string
-): Promise<{ min: number; max: number } | null> {
+): Promise<{ min: number | null; max: number | null } | null> {
   const row = await db.query.propertyAlertThresholdsTable.findFirst({
     where: and(
       eq(propertyAlertThresholdsTable.thingId, thingId),
@@ -152,8 +152,8 @@ export async function getAllPropertyThresholds(): Promise<PropertyThresholdRow[]
   return rows.map((r) => ({
     thingId: r.thingId,
     propertyId: r.propertyId,
-    minValue: r.minValue,
-    maxValue: r.maxValue,
+    minValue: r.minValue ?? null,
+    maxValue: r.maxValue ?? null,
   }));
 }
 
@@ -174,21 +174,21 @@ export async function deletePropertyThreshold(thingId: string, propertyId: strin
 }
 
 /** Get thresholds as a map keyed by "thingId:propertyId" for easy lookup. */
-export async function getThresholdsMap(): Promise<Record<string, { min: number; max: number }>> {
+export async function getThresholdsMap(): Promise<Record<string, { min: number | null; max: number | null }>> {
   const rows = await db.select().from(propertyAlertThresholdsTable);
-  const map: Record<string, { min: number; max: number }> = {};
+  const map: Record<string, { min: number | null; max: number | null }> = {};
   for (const r of rows) {
-    map[`${r.thingId}:${r.propertyId}`] = { min: r.minValue, max: r.maxValue };
+    map[`${r.thingId}:${r.propertyId}`] = { min: r.minValue ?? null, max: r.maxValue ?? null };
   }
   return map;
 }
 
-/** Save or update threshold for one property. */
+/** Save or update threshold for one property. minValue and maxValue can be null. */
 export async function savePropertyThreshold(
   thingId: string,
   propertyId: string,
-  minValue: number,
-  maxValue: number
+  minValue: number | null,
+  maxValue: number | null
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const existing = await db.query.propertyAlertThresholdsTable.findFirst({

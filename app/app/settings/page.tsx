@@ -52,7 +52,8 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Alert thresholds</CardTitle>
           <CardDescription>
-            Optional min/max for INT and FLOAT properties. Leave blank to use defaults (FLOAT 3.0–3.5, INT 1–2).
+            Optional min/max for INT and FLOAT properties. Leave blank to disable alerts for that threshold.
+            If only min is set, alerts trigger when value falls below min. If only max is set, alerts trigger when value exceeds max.
             Values outside range trigger alerts and SMS.
           </CardDescription>
         </CardHeader>

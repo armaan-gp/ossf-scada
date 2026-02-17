@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { savePropertyThreshold, deletePropertyThreshold } from "@/app/actions/settings";
 import type { PlcWithProperties } from "@/lib/plcsWithProperties";
 
-type ThresholdsMap = Record<string, { min: number; max: number }>;
+type ThresholdsMap = Record<string, { min: number | null; max: number | null }>;
 
 export function AlertThresholdsEditor({
   plcs,
@@ -27,9 +27,13 @@ export function AlertThresholdsEditor({
 
   async function handleSave(thingId: string, propertyId: string, minStr: string, maxStr: string) {
     const id = key(thingId, propertyId);
-    const min = parseFloat(minStr);
-    const max = parseFloat(maxStr);
-    if (Number.isNaN(min) && Number.isNaN(max)) {
+    const minStrTrimmed = minStr.trim();
+    const maxStrTrimmed = maxStr.trim();
+    const min = minStrTrimmed === "" ? null : parseFloat(minStrTrimmed);
+    const max = maxStrTrimmed === "" ? null : parseFloat(maxStrTrimmed);
+    
+    // If both are empty, delete the threshold
+    if (min === null && max === null) {
       const result = await deletePropertyThreshold(thingId, propertyId);
       if (result.ok) {
         setThresholds((prev) => {
@@ -37,14 +41,15 @@ export function AlertThresholdsEditor({
           delete next[id];
           return next;
         });
-        toast({ title: "Cleared", description: "Threshold cleared, using defaults." });
+        toast({ title: "Cleared", description: "Threshold cleared." });
         router.refresh();
       } else {
         toast({ title: "Error", description: result.error, variant: "destructive" });
       }
     } else {
-      const minVal = Number.isNaN(min) ? 0 : min;
-      const maxVal = Number.isNaN(max) ? 0 : max;
+      // If one is NaN (invalid number), treat it as null
+      const minVal = (min !== null && Number.isNaN(min)) ? null : min;
+      const maxVal = (max !== null && Number.isNaN(max)) ? null : max;
       setPending(id);
       const result = await savePropertyThreshold(thingId, propertyId, minVal, maxVal);
       setPending(null);
@@ -124,8 +129,8 @@ function ThresholdRow({
   propertyId: string;
   propertyName: string;
   propertyType: string;
-  initialMin?: number;
-  initialMax?: number;
+  initialMin?: number | null;
+  initialMax?: number | null;
   onSave: (thingId: string, propertyId: string, minStr: string, maxStr: string) => void;
   pending: boolean;
 }) {

@@ -41,8 +41,8 @@ export const propertyAlertThresholdsTable = pgTable("property_alert_thresholds",
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   thingId: varchar({ length: 255 }).notNull(),
   propertyId: varchar({ length: 255 }).notNull(),
-  minValue: real().notNull(),
-  maxValue: real().notNull(),
+  minValue: real(),
+  maxValue: real(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 

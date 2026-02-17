@@ -1,25 +1,19 @@
-/**
- * Placeholder default ranges when no per-property threshold is set in DB.
- * FLOAT: 3.0–3.5, INT: 1–2 (per plan).
- */
-export const DEFAULT_FLOAT_MIN = 3.0;
-export const DEFAULT_FLOAT_MAX = 3.5;
-export const DEFAULT_INT_MIN = 1;
-export const DEFAULT_INT_MAX = 2;
-
 export interface PropertyForAlert {
   type: string;
   last_value: unknown;
 }
 
 export interface ThresholdRange {
-  min: number;
-  max: number;
+  min: number | null;
+  max: number | null;
 }
 
 /**
  * Returns whether a property value is outside the given range (in alert).
- * Uses placeholder defaults when range is not provided (for INT/FLOAT only).
+ * Only alerts if:
+ * - min is set and value < min, OR
+ * - max is set and value > max
+ * If both min and max are null/undefined, no alert is triggered.
  */
 export function isPropertyInAlert(
   property: PropertyForAlert,
@@ -32,7 +26,20 @@ export function isPropertyInAlert(
   const num = typeof val === "number" ? val : Number(val);
   if (Number.isNaN(num)) return false;
 
-  const min = range?.min ?? (t === "FLOAT" ? DEFAULT_FLOAT_MIN : DEFAULT_INT_MIN);
-  const max = range?.max ?? (t === "FLOAT" ? DEFAULT_FLOAT_MAX : DEFAULT_INT_MAX);
-  return num < min || num > max;
+  // If no range provided or both min and max are null, no alert
+  if (!range || (range.min === null && range.max === null)) {
+    return false;
+  }
+
+  // Check if value is below min (if min is set)
+  if (range.min !== null && num < range.min) {
+    return true;
+  }
+
+  // Check if value is above max (if max is set)
+  if (range.max !== null && num > range.max) {
+    return true;
+  }
+
+  return false;
 }
