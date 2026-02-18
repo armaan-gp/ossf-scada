@@ -3,14 +3,14 @@
  */
 export const CARRIER_GATEWAYS: Record<string, string> = {
   "T-Mobile": "tmomail.net",
-  "AT&T": "txt.att.net",
   "Verizon": "vtext.com",
+  "Sprint": "messaging.sprintpcs.com",
+  "XFinity Mobile": "vtext.com",
   "Virgin Mobile": "vmobl.com",
   "MetroPCS": "mymetropcs.com",
   "Boost Mobile": "sms.myboostmobile.com",
   "Cricket Wireless": "sms.cricketwireless.net",
   "US Cellular": "email.uscc.net",
-  "US Mobile": "email.usmobile.com",
 } as const;
 
 /** Reverse map: gateway domain -> carrier name (for migrating legacy recipient). */
