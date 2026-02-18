@@ -10,6 +10,7 @@ export const CARRIER_GATEWAYS: Record<string, string> = {
   "Boost Mobile": "sms.myboostmobile.com",
   "Cricket Wireless": "sms.cricketwireless.net",
   "US Cellular": "email.uscc.net",
+  "US Mobile": "email.usmobile.com",
 } as const;
 
 /** Reverse map: gateway domain -> carrier name (for migrating legacy recipient). */
