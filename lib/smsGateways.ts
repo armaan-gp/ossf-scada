@@ -9,7 +9,6 @@ export const CARRIER_GATEWAYS: Record<string, string> = {
   "Virgin Mobile": "vmobl.com",
   "MetroPCS": "mymetropcs.com",
   "Boost Mobile": "sms.myboostmobile.com",
-  "Cricket Wireless": "sms.cricketwireless.net",
   "US Cellular": "email.uscc.net",
 } as const;
 
