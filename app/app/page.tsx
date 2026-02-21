@@ -6,6 +6,7 @@ import { ExternalLink, AlertTriangle, CheckCircle, CircuitBoard, Activity } from
 import { Badge } from "@/components/ui/badge"
 import { getDevices } from "@/lib/arduinoInit"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
+import { FormattedDateTime } from "@/components/FormattedDateTime"
 import React from "react"
 
 export default async function Page() {
@@ -85,11 +86,6 @@ export default async function Page() {
     )
 }
 
-function formatTime(iso: string) {
-    const date = new Date(iso);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
 async function PLCTable({
     devices,
     deviceAlertMap,
@@ -139,7 +135,7 @@ async function PLCTable({
                                             </Badge>
                                         ) : null}
                                     </TableCell>
-                                    <TableCell className="hidden md:table-cell">{device.last_activity_at ? formatTime(device.last_activity_at) : "—"}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{device.last_activity_at ? <FormattedDateTime iso={device.last_activity_at} format="time" /> : "—"}</TableCell>
                                     <TableCell className="text-right">
                                         <Link href={`/app/device/${device.id}`}>
                                             <Button variant="outline" size="sm">

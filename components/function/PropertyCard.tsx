@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle } from "lucide-react";
 import { updateDeviceProperty } from "@/lib/actions/arduino";
+import { FormattedDateTime } from "@/components/FormattedDateTime";
 
 interface ArduinoProperty {
     id: string;
@@ -89,7 +90,7 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false }: P
                             {property.type === "STATUS" ? (displayValue ? "True" : "False") : displayValue}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Last updated: {new Date(property.value_updated_at).toLocaleString()}
+                            Last updated: <FormattedDateTime iso={property.value_updated_at} />
                         </p>
                         {property.permission === "READ_WRITE" && (
                             <div className="mt-4">

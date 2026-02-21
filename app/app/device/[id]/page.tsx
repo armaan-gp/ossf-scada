@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { getDevice, getThing } from "@/lib/arduinoInit"
 import { DeviceProperties } from "@/components/function/DeviceProperties"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
+import { FormattedDateTime } from "@/components/FormattedDateTime"
 
 // Device detail page component that displays information about a specific device
 export default async function SystemDetailPage({
@@ -91,7 +92,7 @@ export default async function SystemDetailPage({
                                 <dt className="text-sm font-medium text-muted-foreground">Last Active</dt>
                                 <dd className="text-sm font-semibold flex items-center">
                                     <Clock className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
-                                    {new Date(device.last_activity_at!).toLocaleString()}
+                                    <FormattedDateTime iso={device.last_activity_at!} />
                                 </dd>
                             </div>
                         </dl>
