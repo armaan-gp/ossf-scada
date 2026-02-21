@@ -7,6 +7,7 @@ import { getDevice, getThing } from "@/lib/arduinoInit"
 import { DeviceProperties } from "@/components/function/DeviceProperties"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
 import { FormattedDateTime } from "@/components/FormattedDateTime"
+import { getThingRecordingConfigs } from "@/app/actions/recordings"
 
 // Device detail page component that displays information about a specific device
 export default async function SystemDetailPage({
@@ -48,6 +49,7 @@ export default async function SystemDetailPage({
     const { alerts: alertStates } = await evaluateThingAlerts(thingId, device.name ?? device.id, {
         sendSmsForNewAlerts: true,
     });
+    const recordingConfigMap = await getThingRecordingConfigs(thingId);
     const initialAlertMap: Record<string, boolean> = {};
     for (const a of alertStates) {
         initialAlertMap[a.propertyId] = a.inAlert;
@@ -139,10 +141,10 @@ export default async function SystemDetailPage({
                         thingId={thingId}
                         initialProperties={JSON.parse(JSON.stringify(device.thing?.properties || []))}
                         initialAlertMap={initialAlertMap}
+                        initialRecordingConfigMap={recordingConfigMap}
                     />
                 </CardContent>
             </Card>
         </div>
     )
 }
-

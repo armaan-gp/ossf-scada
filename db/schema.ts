@@ -48,3 +48,36 @@ export const propertyAlertThresholdsTable = pgTable("property_alert_thresholds",
 
 export type PropertyAlertThreshold = typeof propertyAlertThresholdsTable.$inferSelect;
 export type PropertyAlertThresholdInsert = typeof propertyAlertThresholdsTable.$inferInsert;
+
+// Per-property data recording config for CSV exports.
+export const propertyRecordingConfigsTable = pgTable(
+  "property_recording_configs",
+  {
+    thingId: varchar({ length: 255 }).notNull(),
+    propertyId: varchar({ length: 255 }).notNull(),
+    enabled: boolean().notNull().default(false),
+    intervalMinutes: integer(),
+    maxRows: integer(),
+    lastRecordedAt: timestamp({ withTimezone: true }),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.thingId, table.propertyId] }),
+  ]
+);
+
+export type PropertyRecordingConfig = typeof propertyRecordingConfigsTable.$inferSelect;
+export type PropertyRecordingConfigInsert = typeof propertyRecordingConfigsTable.$inferInsert;
+
+// Rolling per-property recorded values (exported as CSV in UI).
+export const propertyRecordingRowsTable = pgTable("property_recording_rows", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  thingId: varchar({ length: 255 }).notNull(),
+  propertyId: varchar({ length: 255 }).notNull(),
+  recordedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  value: text().notNull(),
+  alertCount: integer().notNull().default(0),
+});
+
+export type PropertyRecordingRow = typeof propertyRecordingRowsTable.$inferSelect;
+export type PropertyRecordingRowInsert = typeof propertyRecordingRowsTable.$inferInsert;

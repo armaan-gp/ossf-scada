@@ -3,13 +3,16 @@ import { Settings } from "lucide-react"
 import { GmailAccountForm, SmsRecipientsForm } from "@/components/function/SmsConfigForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
 import { getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
+import { getAllRecordingConfigsMap } from "@/app/actions/recordings"
 import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
+import { PropertyRecordingEditor } from "@/components/function/PropertyRecordingEditor"
 
 export default async function SettingsPage() {
-  const [smsConfig, plcs, thresholdsMap] = await Promise.all([
+  const [smsConfig, plcs, thresholdsMap, recordingConfigsMap] = await Promise.all([
     getSmsConfig(),
     getPlcsWithProperties().catch(() => []),
     getThresholdsMap(),
+    getAllRecordingConfigsMap(),
   ])
 
   return (
@@ -59,6 +62,19 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <AlertThresholdsEditor plcs={plcs} initialThresholds={thresholdsMap} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <CardTitle>Property CSV recording</CardTitle>
+          <CardDescription>
+            Toggle recording per property. Interval and max rows are required when enabled.
+            Changing interval/max rows or disabling recording clears existing data for that property.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PropertyRecordingEditor plcs={plcs} initialConfigs={recordingConfigsMap} />
         </CardContent>
       </Card>
     </div>

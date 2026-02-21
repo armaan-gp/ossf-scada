@@ -9,9 +9,10 @@ interface DevicePropertiesProps {
     thingId: string;
     initialProperties: any[];
     initialAlertMap: Record<string, boolean>;
+    initialRecordingConfigMap: Record<string, { enabled: boolean; intervalMinutes: number | null; maxRows: number | null }>;
 }
 
-export function DeviceProperties({ thingId, initialProperties, initialAlertMap }: DevicePropertiesProps) {
+export function DeviceProperties({ thingId, initialProperties, initialAlertMap, initialRecordingConfigMap }: DevicePropertiesProps) {
     const [properties, setProperties] = useState(initialProperties);
     const [alertMap, setAlertMap] = useState<Record<string, boolean>>(initialAlertMap);
 
@@ -47,6 +48,7 @@ export function DeviceProperties({ thingId, initialProperties, initialAlertMap }
                     thingId={thingId}
                     onUpdate={refreshProperties}
                     inAlert={alertMap[property.id] ?? false}
+                    recordingConfig={initialRecordingConfigMap[property.id]}
                 />
             ))}
         </div>
