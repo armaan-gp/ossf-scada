@@ -69,7 +69,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Property CSV recording</CardTitle>
           <CardDescription>
-            Toggle recording per property. Interval and max rows are required when enabled.
+            Toggle recording per property. Interval (minimum 5 minutes) and max rows are required when enabled.
             Changing interval/max rows or disabling recording clears existing data for that property.
           </CardDescription>
         </CardHeader>

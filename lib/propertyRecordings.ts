@@ -45,6 +45,10 @@ function isPositiveInteger(value: number | null): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
+function isValidIntervalMinutes(value: number | null): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 5;
+}
+
 async function clearRowsForProperty(thingId: string, propertyId: string): Promise<void> {
   await db.delete(propertyRecordingRowsTable).where(
     and(
@@ -133,8 +137,8 @@ export async function saveRecordingConfig(
     return { ok: true };
   }
 
-  if (!isPositiveInteger(input.intervalMinutes) || !isPositiveInteger(input.maxRows)) {
-    return { ok: false, error: "Interval and max rows must be positive whole numbers." };
+  if (!isValidIntervalMinutes(input.intervalMinutes) || !isPositiveInteger(input.maxRows)) {
+    return { ok: false, error: "Interval must be a whole number of at least 5 minutes, and max rows must be a positive whole number." };
   }
 
   const intervalChanged = !!existing && existing.intervalMinutes !== input.intervalMinutes;
@@ -285,7 +289,7 @@ export async function collectDueRecordingRows(): Promise<{
   let skipped = 0;
 
   for (const cfg of configs) {
-    if (!isPositiveInteger(cfg.intervalMinutes) || !isPositiveInteger(cfg.maxRows)) {
+    if (!isValidIntervalMinutes(cfg.intervalMinutes) || !isPositiveInteger(cfg.maxRows)) {
       skipped++;
       continue;
     }

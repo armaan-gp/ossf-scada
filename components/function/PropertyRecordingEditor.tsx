@@ -110,10 +110,10 @@ export function PropertyRecordingEditor({
 
     const intervalMinutes = toPositiveInt(draft.interval);
     const maxRows = toPositiveInt(draft.maxRows);
-    if (intervalMinutes === null || maxRows === null) {
+    if (intervalMinutes === null || maxRows === null || intervalMinutes < 5) {
       toast({
         title: "Missing values",
-        description: "Enter positive whole numbers for interval and max rows.",
+        description: "Interval must be a whole number of at least 5 minutes. Max rows must be a positive whole number.",
         variant: "destructive",
       });
       return;
@@ -190,11 +190,11 @@ export function PropertyRecordingEditor({
                         <Label className="text-xs">Interval (min)</Label>
                         <Input
                           type="number"
-                          min={1}
+                          min={5}
                           step={1}
                           value={draft.interval}
                           onChange={(e) => updateDraft(k, { interval: e.target.value })}
-                          placeholder="required"
+                          placeholder=">= 5"
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />
