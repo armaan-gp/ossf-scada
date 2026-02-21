@@ -48,3 +48,31 @@ export const propertyAlertThresholdsTable = pgTable("property_alert_thresholds",
 
 export type PropertyAlertThreshold = typeof propertyAlertThresholdsTable.$inferSelect;
 export type PropertyAlertThresholdInsert = typeof propertyAlertThresholdsTable.$inferInsert;
+
+// Per-property CSV recording config (which properties to log, interval, max rows)
+export const propertyCsvConfigTable = pgTable("property_csv_config", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  thingId: varchar({ length: 255 }).notNull(),
+  propertyId: varchar({ length: 255 }).notNull(),
+  enabled: boolean().notNull().default(false),
+  intervalMinutes: integer(),
+  maxRows: integer(),
+  lastRecordedAt: timestamp({ withTimezone: true }),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type PropertyCsvConfig = typeof propertyCsvConfigTable.$inferSelect;
+export type PropertyCsvConfigInsert = typeof propertyCsvConfigTable.$inferInsert;
+
+// Recorded CSV rows per property (date/time, value, alerts)
+export const propertyCsvRecordsTable = pgTable("property_csv_records", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  thingId: varchar({ length: 255 }).notNull(),
+  propertyId: varchar({ length: 255 }).notNull(),
+  recordedAt: timestamp({ withTimezone: true }).notNull(),
+  value: text().notNull(),
+  alerts: integer().notNull(),
+});
+
+export type PropertyCsvRecord = typeof propertyCsvRecordsTable.$inferSelect;
+export type PropertyCsvRecordInsert = typeof propertyCsvRecordsTable.$inferInsert;

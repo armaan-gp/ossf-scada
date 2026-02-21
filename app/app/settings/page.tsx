@@ -3,13 +3,16 @@ import { Settings } from "lucide-react"
 import { GmailAccountForm, SmsRecipientsForm } from "@/components/function/SmsConfigForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
 import { getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
+import { getCsvRecordingConfigMap } from "@/app/actions/csv"
 import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
+import { CsvRecordingEditor } from "@/components/function/CsvRecordingEditor"
 
 export default async function SettingsPage() {
-  const [smsConfig, plcs, thresholdsMap] = await Promise.all([
+  const [smsConfig, plcs, thresholdsMap, csvConfigMap] = await Promise.all([
     getSmsConfig(),
     getPlcsWithProperties().catch(() => []),
     getThresholdsMap(),
+    getCsvRecordingConfigMap(),
   ])
 
   return (
@@ -59,6 +62,20 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <AlertThresholdsEditor plcs={plcs} initialThresholds={thresholdsMap} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <CardTitle>CSV data recording</CardTitle>
+          <CardDescription>
+            Choose which PLC properties to log to CSV. Set recording interval (minutes) and max rows per property.
+            When the max is reached, the oldest row is removed as new data is added. Changing settings or turning off
+            recording will delete existing CSV data for that property—download the file from the device page first if needed.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CsvRecordingEditor plcs={plcs} initialConfig={csvConfigMap} />
         </CardContent>
       </Card>
     </div>

@@ -5,9 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, FileDown, Table2 } from "lucide-react";
 import { updateDeviceProperty } from "@/lib/actions/arduino";
 import { FormattedDateTime } from "@/components/FormattedDateTime";
+import { getPropertyCsvData, type CsvDataRow } from "@/app/actions/csv";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ArduinoProperty {
     id: string;
@@ -130,9 +139,123 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false }: P
                             <dt className="text-muted-foreground">Persist:</dt>
                             <dd>{property.persist ? "Yes" : "No"}</dd>
                         </dl>
+                        <div className="mt-3 pt-3 border-t">
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2">CSV data</h4>
+                            <CsvDataActions thingId={thingId} propertyId={property.id} propertyName={property.name} />
+                        </div>
                     </div>
                 </div>
             </CardContent>
         </Card>
     );
+}
+
+function CsvDataActions({
+  thingId,
+  propertyId,
+  propertyName,
+}: {
+  thingId: string;
+  propertyId: string;
+  propertyName: string;
+}) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [rows, setRows] = useState<CsvDataRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadPreview() {
+    setLoading(true);
+    try {
+      const data = await getPropertyCsvData(thingId, propertyId);
+      setRows(data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function openPreview() {
+    setPreviewOpen(true);
+    loadPreview();
+  }
+
+  async function downloadCsv() {
+    setLoading(true);
+    try {
+      const data = await getPropertyCsvData(thingId, propertyId);
+      const header = "date,time,value,alerts";
+      const body = data.map((r) => `${r.date},${r.time},${escapeCsv(r.value)},${r.alerts}`).join("\n");
+      const csv = header + "\n" + body;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${sanitizeFileName(propertyName)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={openPreview} disabled={loading}>
+          <Table2 className="h-3.5 w-3.5 mr-1" />
+          Preview
+        </Button>
+        <Button variant="outline" size="sm" onClick={downloadCsv} disabled={loading}>
+          <FileDown className="h-3.5 w-3.5 mr-1" />
+          Download CSV
+        </Button>
+      </div>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>CSV data: {propertyName}</DialogTitle>
+          </DialogHeader>
+          {loading && rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No data recorded yet. Enable recording in Settings.</p>
+          ) : (
+            <div className="overflow-auto max-h-[60vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Alerts</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-mono text-xs">{r.date}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.time}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.value}</TableCell>
+                      <TableCell>{r.alerts}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function escapeCsv(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50) || "data";
 } 

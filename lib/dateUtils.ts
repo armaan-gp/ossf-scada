@@ -40,3 +40,13 @@ export function formatTimeOnly(iso: string, timeZone: string = DEFAULT_TIMEZONE)
     minute: "2-digit",
   });
 }
+
+/** Format date for CSV column (short date in timezone). */
+export function formatDateForCsv(date: Date, timeZone: string = DEFAULT_TIMEZONE): string {
+  return new Intl.DateTimeFormat(undefined, { timeZone, dateStyle: "short" }).format(date);
+}
+
+/** Format time for CSV column (medium time in timezone). */
+export function formatTimeForCsv(date: Date, timeZone: string = DEFAULT_TIMEZONE): string {
+  return new Intl.DateTimeFormat(undefined, { timeZone, timeStyle: "medium" }).format(date);
+}
