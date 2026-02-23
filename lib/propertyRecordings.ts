@@ -35,6 +35,8 @@ export type RecordingRowView = {
   alertCount: number;
 };
 
+const MAX_RECORDING_ROWS = 10000;
+
 function normalizeRecordedValue(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);
@@ -45,8 +47,25 @@ function isPositiveInteger(value: number | null): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
+function isValidMaxRows(value: number | null): value is number {
+  return isPositiveInteger(value) && value <= MAX_RECORDING_ROWS;
+}
+
 function isValidIntervalMinutes(value: number | null): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 5;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 5 &&
+    value % 5 === 0
+  );
+}
+
+const CRON_BASE_INTERVAL_MINUTES = 5;
+const CRON_BASE_INTERVAL_MS = CRON_BASE_INTERVAL_MINUTES * 60 * 1000;
+
+function floorToCronSlot(date: Date): Date {
+  const slotMs = Math.floor(date.getTime() / CRON_BASE_INTERVAL_MS) * CRON_BASE_INTERVAL_MS;
+  return new Date(slotMs);
 }
 
 async function clearRowsForProperty(thingId: string, propertyId: string): Promise<void> {
@@ -137,8 +156,8 @@ export async function saveRecordingConfig(
     return { ok: true };
   }
 
-  if (!isValidIntervalMinutes(input.intervalMinutes) || !isPositiveInteger(input.maxRows)) {
-    return { ok: false, error: "Interval must be a whole number of at least 5 minutes, and max rows must be a positive whole number." };
+  if (!isValidIntervalMinutes(input.intervalMinutes) || !isValidMaxRows(input.maxRows)) {
+    return { ok: false, error: `Interval must be a whole number that is at least 5 and a multiple of 5 minutes, and max rows must be between 1 and ${MAX_RECORDING_ROWS}.` };
   }
 
   const intervalChanged = !!existing && existing.intervalMinutes !== input.intervalMinutes;
@@ -202,7 +221,7 @@ export async function getRecordingPreviewRows(
   propertyId: string,
   limit = 100
 ): Promise<RecordingRowView[]> {
-  const safeLimit = Math.min(Math.max(limit, 1), 500);
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_RECORDING_ROWS);
   const rows = await db
     .select({
       recordedAt: propertyRecordingRowsTable.recordedAt,
@@ -279,6 +298,7 @@ export async function collectDueRecordingRows(): Promise<{
   skipped: number;
 }> {
   const now = new Date();
+  const runSlotAt = floorToCronSlot(now);
   const configs = await db
     .select()
     .from(propertyRecordingConfigsTable)
@@ -289,13 +309,14 @@ export async function collectDueRecordingRows(): Promise<{
   let skipped = 0;
 
   for (const cfg of configs) {
-    if (!isValidIntervalMinutes(cfg.intervalMinutes) || !isPositiveInteger(cfg.maxRows)) {
+    if (!isValidIntervalMinutes(cfg.intervalMinutes) || !isValidMaxRows(cfg.maxRows)) {
       skipped++;
       continue;
     }
 
     if (cfg.lastRecordedAt) {
-      const elapsedMs = now.getTime() - cfg.lastRecordedAt.getTime();
+      const lastSlotAt = floorToCronSlot(cfg.lastRecordedAt);
+      const elapsedMs = runSlotAt.getTime() - lastSlotAt.getTime();
       const dueMs = cfg.intervalMinutes * 60 * 1000;
       if (elapsedMs < dueMs) {
         skipped++;
@@ -340,7 +361,7 @@ export async function collectDueRecordingRows(): Promise<{
     await db.insert(propertyRecordingRowsTable).values({
       thingId: cfg.thingId,
       propertyId: cfg.propertyId,
-      recordedAt: now,
+      recordedAt: runSlotAt,
       value: normalizeRecordedValue(property.last_value),
       alertCount: inAlert ? 1 : 0,
     });
@@ -349,7 +370,7 @@ export async function collectDueRecordingRows(): Promise<{
 
     await db
       .update(propertyRecordingConfigsTable)
-      .set({ lastRecordedAt: now, updatedAt: now })
+      .set({ lastRecordedAt: runSlotAt, updatedAt: now })
       .where(
         and(
           eq(propertyRecordingConfigsTable.thingId, cfg.thingId),

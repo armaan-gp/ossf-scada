@@ -39,6 +39,7 @@ function toPositiveInt(raw: string): number | null {
 
 const DATA_RESET_WARNING =
   "This change will delete previously recorded CSV data for this property. Download the current CSV first if you need to keep it. Continue?";
+const MAX_RECORDING_ROWS = 10000;
 
 export function PropertyRecordingEditor({
   plcs,
@@ -110,10 +111,16 @@ export function PropertyRecordingEditor({
 
     const intervalMinutes = toPositiveInt(draft.interval);
     const maxRows = toPositiveInt(draft.maxRows);
-    if (intervalMinutes === null || maxRows === null || intervalMinutes < 5) {
+    if (
+      intervalMinutes === null ||
+      maxRows === null ||
+      intervalMinutes < 5 ||
+      intervalMinutes % 5 !== 0 ||
+      maxRows > MAX_RECORDING_ROWS
+    ) {
       toast({
         title: "Missing values",
-        description: "Interval must be a whole number of at least 5 minutes. Max rows must be a positive whole number.",
+        description: `Interval must be a whole number that is at least 5 and a multiple of 5 minutes. Max rows must be between 1 and ${MAX_RECORDING_ROWS}.`,
         variant: "destructive",
       });
       return;
@@ -191,10 +198,10 @@ export function PropertyRecordingEditor({
                         <Input
                           type="number"
                           min={5}
-                          step={1}
+                          step={5}
                           value={draft.interval}
                           onChange={(e) => updateDraft(k, { interval: e.target.value })}
-                          placeholder=">= 5"
+                          placeholder="5, 10, 15..."
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />
@@ -204,10 +211,11 @@ export function PropertyRecordingEditor({
                         <Input
                           type="number"
                           min={1}
+                          max={MAX_RECORDING_ROWS}
                           step={1}
                           value={draft.maxRows}
                           onChange={(e) => updateDraft(k, { maxRows: e.target.value })}
-                          placeholder="required"
+                          placeholder={`1-${MAX_RECORDING_ROWS}`}
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />

@@ -73,7 +73,8 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
         setPreviewOpen(true);
         setPreviewLoading(true);
         try {
-            const rows = await getPropertyRecordingPreview(thingId, property.id, 100);
+            const previewLimit = recordingConfig?.maxRows ?? 10000;
+            const rows = await getPropertyRecordingPreview(thingId, property.id, previewLimit);
             setPreviewRows(rows);
         } catch (error) {
             console.error("Failed to load recording preview:", error);
