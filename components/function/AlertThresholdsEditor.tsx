@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { savePropertyThreshold, deletePropertyThreshold } from "@/app/actions/settings";
@@ -20,10 +27,22 @@ export function AlertThresholdsEditor({
 }) {
   const [thresholds, setThresholds] = useState<ThresholdsMap>(initialThresholds);
   const [pending, setPending] = useState<string | null>(null);
+  const [selectedThingId, setSelectedThingId] = useState<string>(plcs[0]?.thingId ?? "");
   const { toast } = useToast();
   const router = useRouter();
 
   const key = (thingId: string, propertyId: string) => `${thingId}:${propertyId}`;
+  const selectedPlc = plcs.find((plc) => plc.thingId === selectedThingId) ?? plcs[0];
+
+  useEffect(() => {
+    if (plcs.length === 0) {
+      setSelectedThingId("");
+      return;
+    }
+    if (!plcs.some((plc) => plc.thingId === selectedThingId)) {
+      setSelectedThingId(plcs[0].thingId);
+    }
+  }, [plcs, selectedThingId]);
 
   async function handleSave(thingId: string, propertyId: string, minStr: string, maxStr: string) {
     const id = key(thingId, propertyId);
@@ -69,18 +88,34 @@ export function AlertThresholdsEditor({
 
   return (
     <div className="space-y-6">
-      {plcs.map((plc) => (
-        <div key={plc.deviceId} className="rounded-lg border p-4">
-          <h4 className="font-semibold text-sm mb-3">{plc.deviceName}</h4>
-          {plc.properties.length === 0 ? (
+      <div className="w-full max-w-xs">
+        <Label className="text-xs">Select PLC</Label>
+        <Select value={selectedPlc?.thingId ?? ""} onValueChange={setSelectedThingId}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Choose a PLC" />
+          </SelectTrigger>
+          <SelectContent>
+            {plcs.map((plc) => (
+              <SelectItem key={plc.deviceId} value={plc.thingId}>
+                {plc.deviceName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedPlc ? (
+        <div className="rounded-lg border p-4">
+          <h4 className="font-semibold text-sm mb-3">{selectedPlc.deviceName}</h4>
+          {selectedPlc.properties.length === 0 ? (
             <p className="text-sm text-muted-foreground">No properties</p>
           ) : (
             <div className="space-y-3">
-              {plc.properties.map((prop) => {
+              {selectedPlc.properties.map((prop) => {
                 const t = prop.type;
-                const th = thresholds[key(plc.thingId, prop.id)];
+                const th = thresholds[key(selectedPlc.thingId, prop.id)];
                 const isNumeric = t === "INT" || t === "FLOAT";
-                const k = key(plc.thingId, prop.id);
+                const k = key(selectedPlc.thingId, prop.id);
                 const isPending = pending === k;
 
                 if (!isNumeric) {
@@ -96,7 +131,7 @@ export function AlertThresholdsEditor({
                 return (
                   <ThresholdRow
                     key={prop.id}
-                    thingId={plc.thingId}
+                    thingId={selectedPlc.thingId}
                     propertyId={prop.id}
                     propertyName={prop.name}
                     propertyType={t}
@@ -110,7 +145,7 @@ export function AlertThresholdsEditor({
             </div>
           )}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }

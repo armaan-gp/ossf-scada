@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PlcWithProperties } from "@/lib/plcsWithProperties";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { savePropertyRecordingConfig } from "@/app/actions/recordings";
 import { useRouter } from "next/navigation";
@@ -50,8 +57,10 @@ export function PropertyRecordingEditor({
 }) {
   const [configs, setConfigs] = useState<RecordingConfigMap>(initialConfigs);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [selectedThingId, setSelectedThingId] = useState<string>(plcs[0]?.thingId ?? "");
   const { toast } = useToast();
   const router = useRouter();
+  const selectedPlc = plcs.find((plc) => plc.thingId === selectedThingId) ?? plcs[0];
 
   const rows = useMemo(() => {
     const flat: Array<{ thingId: string; propertyId: string; propertyName: string; deviceName: string; cfg: RowState }> = [];
@@ -82,6 +91,16 @@ export function PropertyRecordingEditor({
     }
     return initial;
   });
+
+  useEffect(() => {
+    if (plcs.length === 0) {
+      setSelectedThingId("");
+      return;
+    }
+    if (!plcs.some((plc) => plc.thingId === selectedThingId)) {
+      setSelectedThingId(plcs[0].thingId);
+    }
+  }, [plcs, selectedThingId]);
 
   function updateDraft(k: string, next: Partial<RowState>) {
     setDrafts((prev) => ({ ...prev, [k]: { ...prev[k], ...next } }));
@@ -166,15 +185,31 @@ export function PropertyRecordingEditor({
 
   return (
     <div className="space-y-6">
-      {plcs.map((plc) => (
-        <div key={plc.deviceId} className="rounded-lg border p-4">
-          <h4 className="font-semibold text-sm mb-3">{plc.deviceName}</h4>
-          {plc.properties.length === 0 ? (
+      <div className="w-full max-w-xs">
+        <Label className="text-xs">Select PLC</Label>
+        <Select value={selectedPlc?.thingId ?? ""} onValueChange={setSelectedThingId}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Choose a PLC" />
+          </SelectTrigger>
+          <SelectContent>
+            {plcs.map((plc) => (
+              <SelectItem key={plc.deviceId} value={plc.thingId}>
+                {plc.deviceName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedPlc ? (
+        <div className="rounded-lg border p-4">
+          <h4 className="font-semibold text-sm mb-3">{selectedPlc.deviceName}</h4>
+          {selectedPlc.properties.length === 0 ? (
             <p className="text-sm text-muted-foreground">No properties</p>
           ) : (
             <div className="space-y-3">
-              {plc.properties.map((prop) => {
-                const k = key(plc.thingId, prop.id);
+              {selectedPlc.properties.map((prop) => {
+                const k = key(selectedPlc.thingId, prop.id);
                 const draft = drafts[k] ?? { enabled: false, interval: "", maxRows: "" };
                 const isPending = pendingKey === k;
 
@@ -220,7 +255,7 @@ export function PropertyRecordingEditor({
                           disabled={!draft.enabled || isPending}
                         />
                       </div>
-                      <Button size="sm" disabled={isPending} onClick={() => handleSave(plc.thingId, prop.id)}>
+                      <Button size="sm" disabled={isPending} onClick={() => handleSave(selectedPlc.thingId, prop.id)}>
                         {isPending ? "Saving…" : "Save"}
                       </Button>
                     </div>
@@ -230,7 +265,7 @@ export function PropertyRecordingEditor({
             </div>
           )}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
