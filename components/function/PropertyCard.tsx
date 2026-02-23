@@ -99,8 +99,8 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
                     <Badge
                         className={
                             property.permission === "READ_ONLY"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-green-100 text-green-800"
+                                ? "bg-blue-100 text-blue-800 hover:bg-blue-100 cursor-default"
+                                : "bg-green-100 text-green-800 hover:bg-green-100 cursor-default"
                         }
                     >
                         {property.permission}
@@ -186,6 +186,7 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
                                                         <table className="w-full text-sm">
                                                             <thead className="bg-muted">
                                                                 <tr>
+                                                                    <th className="text-left p-2">#</th>
                                                                     <th className="text-left p-2">Date/Time</th>
                                                                     <th className="text-left p-2">Value</th>
                                                                     <th className="text-left p-2">Alerts</th>
@@ -194,6 +195,7 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
                                                             <tbody>
                                                                 {previewRows.map((row, idx) => (
                                                                     <tr key={`${String(row.recordedAt)}-${idx}`} className="border-t">
+                                                                        <td className="p-2">{previewRows.length - idx}</td>
                                                                         <td className="p-2">{new Date(row.recordedAt).toLocaleString()}</td>
                                                                         <td className="p-2">{row.value}</td>
                                                                         <td className="p-2">{row.alertCount}</td>
