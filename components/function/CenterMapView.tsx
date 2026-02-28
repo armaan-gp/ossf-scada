@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Circle, ExternalLink, Link2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type CenterMapSystemView = {
@@ -77,6 +77,17 @@ export function CenterMapView({
   const activeSystem = openSystemKey ? systemState.find((s) => s.key === openSystemKey) ?? null : null;
   const isActiveSystemPending = activeSystem ? pendingSystemKey === activeSystem.key : false;
 
+  useEffect(() => {
+    setSystemState(systems);
+    const validIds = new Set(devices.map((d) => d.id));
+    const nextSelection: Record<string, string | undefined> = {};
+    for (const system of systems) {
+      nextSelection[system.key] =
+        system.assignedDeviceId && validIds.has(system.assignedDeviceId) ? system.assignedDeviceId : undefined;
+    }
+    setSelectedBySystem(nextSelection);
+  }, [systems, devices]);
+
   function getSelectedDeviceId(systemKey: string): string | undefined {
     const selected = selectedBySystem[systemKey];
     if (!selected || !validDeviceIds.has(selected)) return undefined;
@@ -86,24 +97,24 @@ export function CenterMapView({
   function getStatusDisplay(system: CenterMapSystemView) {
     if (!system.assignedDeviceId) {
       return {
-        icon: <Circle className="h-4 w-4 text-slate-400" aria-label="Unassigned" />,
+        icon: <Circle className="h-6 w-6 text-slate-400" aria-label="Unassigned" />,
         text: "Unassigned",
       };
     }
     if (system.alertCount == null) {
       return {
-        icon: <Circle className="h-4 w-4 text-slate-500" aria-label="Unknown status" />,
+        icon: <Circle className="h-6 w-6 text-slate-500" aria-label="Unknown status" />,
         text: "Unknown",
       };
     }
     if (system.alertCount > 0) {
       return {
-        icon: <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Active alerts" />,
+        icon: <AlertTriangle className="h-6 w-6 text-red-500" aria-label="Active alerts" />,
         text: `${system.alertCount} active alert${system.alertCount > 1 ? "s" : ""}`,
       };
     }
     return {
-      icon: <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="No alerts" />,
+      icon: <CheckCircle2 className="h-6 w-6 text-green-600" aria-label="No alerts" />,
       text: "No active alerts",
     };
   }
@@ -210,10 +221,7 @@ export function CenterMapView({
           >
             {system.label}
           </p>
-          <div className="inline-flex items-center gap-2 text-xs text-slate-600">
-            {status.icon}
-            <span>{status.text}</span>
-          </div>
+          <div className="inline-flex items-center text-slate-600">{status.icon}</div>
           <p className="text-xs text-slate-600">
             {system.assignedDeviceId
               ? `PLC: ${system.assignedDevice?.name ?? `${system.assignedDeviceId} (Unavailable)`}`
@@ -266,16 +274,10 @@ export function CenterMapView({
                   <span className="font-semibold">Last Active:</span>{" "}
                   {activeSystem.assignedDevice?.lastActivityAt ?? "N/A"}
                 </p>
-                <p>
-                  <span className="font-semibold">Alerts:</span>{" "}
-                  {!activeSystem.assignedDeviceId
-                    ? "Unassigned"
-                    : activeSystem.alertCount == null
-                    ? "Unknown"
-                    : activeSystem.alertCount > 0
-                    ? `${activeSystem.alertCount} active alert${activeSystem.alertCount > 1 ? "s" : ""}`
-                    : "No active alerts"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">Alerts:</span>
+                  <span className="inline-flex items-center text-slate-600">{getStatusDisplay(activeSystem).icon}</span>
+                </div>
               </div>
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-semibold">Assign PLC</p>

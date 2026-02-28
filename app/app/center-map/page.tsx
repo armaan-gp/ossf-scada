@@ -7,6 +7,13 @@ import { CENTER_MAP_SYSTEMS } from "@/lib/centerMapLayout";
 export default async function CenterMapPage() {
   const [devices, assignmentMap] = await Promise.all([getDevices(), getCenterMapAssignments()]);
 
+  const normalizeLastActivityAt = (value: unknown): string | null => {
+    if (!value) return null;
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return value.toISOString();
+    return String(value);
+  };
+
   const devicesForSelect = devices.map((device) => ({
     id: device.id,
     name: device.name ?? device.id,
@@ -19,7 +26,7 @@ export default async function CenterMapPage() {
         id: device.id,
         name: device.name ?? device.id,
         status: device.device_status ?? "UNKNOWN",
-        lastActivityAt: device.last_activity_at ?? null,
+        lastActivityAt: normalizeLastActivityAt(device.last_activity_at),
         thingId: device.thing?.id ?? device.id,
       },
     ])
