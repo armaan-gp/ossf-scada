@@ -40,6 +40,7 @@ export type CenterMapSystemView = {
     lastActivityAt: string | null;
   } | null;
   alertCount: number | null;
+  properties: Array<{ id: string; name: string; value: string }>;
 };
 
 type SelectDevice = {
@@ -98,24 +99,20 @@ export function CenterMapView({
     if (!system.assignedDeviceId) {
       return {
         icon: <Circle className="h-6 w-6 text-slate-400" aria-label="Unassigned" />,
-        text: "Unassigned",
       };
     }
     if (system.alertCount == null) {
       return {
         icon: <Circle className="h-6 w-6 text-slate-500" aria-label="Unknown status" />,
-        text: "Unknown",
       };
     }
     if (system.alertCount > 0) {
       return {
         icon: <AlertTriangle className="h-6 w-6 text-red-500" aria-label="Active alerts" />,
-        text: `${system.alertCount} active alert${system.alertCount > 1 ? "s" : ""}`,
       };
     }
     return {
       icon: <CheckCircle2 className="h-6 w-6 text-green-600" aria-label="No alerts" />,
-      text: "No active alerts",
     };
   }
 
@@ -210,19 +207,19 @@ export function CenterMapView({
             : undefined
         }
         className={cn(
-          absolute ? "absolute" : "min-h-[180px] w-full",
-          "rounded-xl border bg-slate-50 p-3 text-left transition-all hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+          absolute ? "absolute" : "min-h-[200px] w-full",
+          "rounded-xl border bg-slate-50 p-4 transition-all hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer overflow-hidden"
         )}
       >
-        <div className="flex h-full flex-col gap-2">
+        <div className="flex h-full min-w-0 flex-col items-center justify-center gap-2 text-center">
           <p
-            className="font-semibold tracking-wide text-slate-900"
+            className="font-semibold tracking-wide text-slate-900 break-words leading-tight text-[clamp(0.8rem,1vw,1.75rem)]"
             style={system.rotate ? { transform: `rotate(${system.rotate}deg)` } : undefined}
           >
             {system.label}
           </p>
           <div className="inline-flex items-center text-slate-600">{status.icon}</div>
-          <p className="text-xs text-slate-600">
+          <p className="text-slate-600 break-words leading-tight text-[clamp(0.65rem,0.78vw,0.9rem)]">
             {system.assignedDeviceId
               ? `PLC: ${system.assignedDevice?.name ?? `${system.assignedDeviceId} (Unavailable)`}`
               : "No PLC connected"}
@@ -250,7 +247,7 @@ export function CenterMapView({
           if (!open) setOpenSystemKey(null);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           {activeSystem ? (
             <>
               <DialogHeader>
@@ -261,10 +258,13 @@ export function CenterMapView({
                 <p>
                   <span className="font-semibold">Assigned PLC:</span>{" "}
                   {activeSystem.assignedDevice
-                    ? `${activeSystem.assignedDevice.name} (${activeSystem.assignedDevice.id})`
+                    ? activeSystem.assignedDevice.name
                     : activeSystem.assignedDeviceId
-                    ? `${activeSystem.assignedDeviceId} (not currently available)`
+                    ? "Unavailable PLC"
                     : "No PLC assigned"}
+                </p>
+                <p>
+                  <span className="font-semibold">PLC ID:</span> {activeSystem.assignedDeviceId ?? "N/A"}
                 </p>
                 <p>
                   <span className="font-semibold">Status:</span>{" "}
@@ -297,7 +297,7 @@ export function CenterMapView({
                   <SelectContent>
                     {devices.map((device) => (
                       <SelectItem key={device.id} value={device.id}>
-                        {device.name} ({device.id})
+                        {device.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -319,6 +319,31 @@ export function CenterMapView({
                     Remove PLC
                   </Button>
                 </div>
+              </div>
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-sm font-semibold">Properties</p>
+                {activeSystem.properties.length > 0 ? (
+                  <div className="max-h-56 overflow-auto rounded border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="p-2 text-left font-medium">Property</th>
+                          <th className="p-2 text-left font-medium">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeSystem.properties.map((property) => (
+                          <tr key={property.id} className="border-t align-top">
+                            <td className="p-2 break-words">{property.name}</td>
+                            <td className="p-2 break-words">{property.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No properties available</p>
+                )}
               </div>
               <DialogFooter className="sm:justify-start pt-1">
                 {activeSystem.assignedDeviceId ? (
