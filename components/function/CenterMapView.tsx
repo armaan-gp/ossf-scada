@@ -1,6 +1,7 @@
 "use client";
 
 import { setCenterMapAssignment } from "@/app/actions/centerMap";
+import { getAlertStateForProperties } from "@/app/actions/settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,8 +22,9 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Circle, ExternalLink, Link2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchThing } from "@/lib/actions/arduino";
 
 export type CenterMapSystemView = {
   key: string;
@@ -38,9 +40,10 @@ export type CenterMapSystemView = {
     name: string;
     status: string;
     lastActivityAt: string | null;
+    thingId: string;
   } | null;
   alertCount: number | null;
-  properties: Array<{ id: string; name: string; value: string }>;
+  properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>;
 };
 
 type SelectDevice = {
@@ -74,6 +77,7 @@ export function CenterMapView({
     return new Map(devices.map((d) => [d.id, d]));
   }, [devices]);
   const validDeviceIds = useMemo(() => new Set(devices.map((d) => d.id)), [devices]);
+  const systemStateRef = useRef<CenterMapSystemView[]>(systemState);
 
   const activeSystem = openSystemKey ? systemState.find((s) => s.key === openSystemKey) ?? null : null;
   const isActiveSystemPending = activeSystem ? pendingSystemKey === activeSystem.key : false;
@@ -88,6 +92,103 @@ export function CenterMapView({
     }
     setSelectedBySystem(nextSelection);
   }, [systems, devices]);
+
+  useEffect(() => {
+    systemStateRef.current = systemState;
+  }, [systemState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let polling = false;
+
+    const normalizeDisplayValue = (value: unknown): string => {
+      if (value === null || value === undefined) return "N/A";
+      if (value instanceof Date) return value.toISOString();
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+      }
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "N/A";
+      }
+    };
+
+    const refreshAssignedSystems = async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const current = systemStateRef.current;
+        const updates = await Promise.all(
+          current.map(async (system) => {
+            if (!system.assignedDeviceId) return null;
+            const thingId = system.assignedDevice?.thingId ?? system.assignedDeviceId;
+            const thingResult = await fetchThing(thingId);
+            if (!thingResult.success || !thingResult.data) return null;
+
+            const thingProps = (thingResult.data.properties ?? []) as Array<{
+              id: string;
+              name?: string;
+              variable_name?: string;
+              type?: string;
+              last_value?: unknown;
+            }>;
+
+            const properties = thingProps.map((prop) => ({
+              id: prop.id,
+              name: prop.name ?? prop.variable_name ?? prop.id,
+              value: normalizeDisplayValue(prop.last_value),
+              inAlert: false,
+            }));
+
+            const alertMap = await getAlertStateForProperties(
+              thingId,
+              thingProps.map((prop) => ({
+                id: prop.id,
+                type: prop.type ?? "",
+                last_value: prop.last_value,
+              }))
+            );
+            const alertCount = Object.values(alertMap).filter(Boolean).length;
+            const propertiesWithAlert = properties.map((prop) => ({
+              ...prop,
+              inAlert: alertMap[prop.id] ?? false,
+            }));
+
+            return { key: system.key, properties: propertiesWithAlert, alertCount };
+          })
+        );
+
+        if (cancelled) return;
+        const updateMap = new Map(
+          updates
+            .filter((u): u is { key: string; properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>; alertCount: number } => !!u)
+            .map((u) => [u.key, u])
+        );
+
+        setSystemState((curr) =>
+          curr.map((system) => {
+            const next = updateMap.get(system.key);
+            if (!next) return system;
+            return {
+              ...system,
+              properties: next.properties,
+              alertCount: next.alertCount,
+            };
+          })
+        );
+      } finally {
+        polling = false;
+      }
+    };
+
+    refreshAssignedSystems();
+    const intervalId = setInterval(refreshAssignedSystems, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   function getSelectedDeviceId(systemKey: string): string | undefined {
     const selected = selectedBySystem[systemKey];
@@ -136,8 +237,10 @@ export function CenterMapView({
                 name: devicesById.get(selectedDeviceId)?.name ?? selectedDeviceId,
                 status: "UNKNOWN",
                 lastActivityAt: null,
+                thingId: selectedDeviceId,
               },
               alertCount: null,
+              properties: [],
             }
           : system
       )
@@ -160,12 +263,13 @@ export function CenterMapView({
     setPendingSystemKey(systemKey);
     setSystemState((curr) =>
       curr.map((system) =>
-        system.key === systemKey
+            system.key === systemKey
           ? {
               ...system,
               assignedDeviceId: null,
               assignedDevice: null,
               alertCount: null,
+              properties: [],
             }
           : system
       )
@@ -334,7 +438,14 @@ export function CenterMapView({
                       <tbody>
                         {activeSystem.properties.map((property) => (
                           <tr key={property.id} className="border-t align-top">
-                            <td className="p-2 break-words">{property.name}</td>
+                            <td className="p-2 break-words">
+                              <span className="inline-flex items-center gap-1">
+                                {property.name}
+                                {property.inAlert ? (
+                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" aria-label="Property in alert" />
+                                ) : null}
+                              </span>
+                            </td>
                             <td className="p-2 break-words">{property.value}</td>
                           </tr>
                         ))}

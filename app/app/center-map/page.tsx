@@ -57,19 +57,21 @@ export default async function CenterMapPage() {
     const assignedDeviceId = assignmentMap[system.key] ?? null;
     const assignedDevice = assignedDeviceId ? devicesById.get(assignedDeviceId) : undefined;
     let alertCount: number | null = null;
-    let properties: Array<{ id: string; name: string; value: string }> = [];
+    let properties: Array<{ id: string; name: string; value: string; inAlert: boolean }> = [];
 
     if (assignedDeviceId && assignedDevice) {
       try {
         const thing = await getThingCached(assignedDevice.thingId);
+        const result = await evaluateThingAlerts(assignedDevice.thingId, assignedDevice.name, {
+          sendSmsForNewAlerts: false,
+        });
+        const alertIds = new Set(result.alerts.filter((a) => a.inAlert).map((a) => a.propertyId));
         properties = (thing.properties ?? []).map((prop) => ({
           id: prop.id,
           name: prop.name ?? prop.variable_name ?? prop.id,
           value: normalizeDisplayValue(prop.last_value),
+          inAlert: alertIds.has(prop.id),
         }));
-        const result = await evaluateThingAlerts(assignedDevice.thingId, assignedDevice.name, {
-          sendSmsForNewAlerts: false,
-        });
         alertCount = result.alertCount;
       } catch {
         alertCount = null;
