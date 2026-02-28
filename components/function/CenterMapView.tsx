@@ -199,21 +199,21 @@ export function CenterMapView({
   function getStatusDisplay(system: CenterMapSystemView) {
     if (!system.assignedDeviceId) {
       return {
-        icon: <Circle className="h-6 w-6 text-slate-400" aria-label="Unassigned" />,
+        icon: <Circle className="h-6 w-6 text-slate-400 transition-none pointer-events-none" aria-label="Unassigned" />,
       };
     }
     if (system.alertCount == null) {
       return {
-        icon: <Circle className="h-6 w-6 text-slate-500" aria-label="Unknown status" />,
+        icon: <Circle className="h-6 w-6 text-slate-500 transition-none pointer-events-none" aria-label="Unknown status" />,
       };
     }
     if (system.alertCount > 0) {
       return {
-        icon: <AlertTriangle className="h-6 w-6 text-red-500" aria-label="Active alerts" />,
+        icon: <AlertTriangle className="h-6 w-6 text-red-500 transition-none pointer-events-none" aria-label="Active alerts" />,
       };
     }
     return {
-      icon: <CheckCircle2 className="h-6 w-6 text-green-600" aria-label="No alerts" />,
+      icon: <CheckCircle2 className="h-6 w-6 text-green-600 transition-none pointer-events-none" aria-label="No alerts" />,
     };
   }
 
@@ -312,7 +312,7 @@ export function CenterMapView({
         }
         className={cn(
           absolute ? "absolute" : "min-h-[200px] w-full",
-          "rounded-xl border bg-slate-50 p-4 transition-all hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer overflow-hidden"
+          "rounded-xl border bg-slate-50 p-4 transition-all transform-gpu hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer overflow-hidden"
         )}
       >
         <div className="flex h-full min-w-0 flex-col items-center justify-center gap-2 text-center">
@@ -322,7 +322,7 @@ export function CenterMapView({
           >
             {system.label}
           </p>
-          <div className="inline-flex items-center text-slate-600">{status.icon}</div>
+          <div className="flex items-center justify-center text-slate-600 pointer-events-none">{status.icon}</div>
           <p className="text-slate-600 break-words leading-tight text-[clamp(0.65rem,0.78vw,0.9rem)]">
             {system.assignedDeviceId
               ? `PLC: ${system.assignedDevice?.name ?? `${system.assignedDeviceId} (Unavailable)`}`
