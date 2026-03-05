@@ -239,7 +239,14 @@ export async function getRecordingPreviewRows(
     )
     .orderBy(desc(propertyRecordingRowsTable.recordedAt), desc(propertyRecordingRowsTable.id))
     .limit(safeLimit);
-  return rows;
+
+  const { shouldFormatFloat, decimalPlaces } = await getDisplayFormatContext(thingId, propertyId);
+  if (!shouldFormatFloat) return rows;
+
+  return rows.map((row) => ({
+    ...row,
+    value: formatCsvRecordedValueForFloat(row.value, decimalPlaces),
+  }));
 }
 
 function escapeCsvValue(raw: string): string {
@@ -261,22 +268,10 @@ function formatCsvRecordedValueForFloat(raw: string, decimalPlaces: number | nul
   return parsed.toFixed(decimalPlaces);
 }
 
-export async function buildRecordingCsv(thingId: string, propertyId: string): Promise<string> {
-  const rows = await db
-    .select({
-      recordedAt: propertyRecordingRowsTable.recordedAt,
-      value: propertyRecordingRowsTable.value,
-      alertCount: propertyRecordingRowsTable.alertCount,
-    })
-    .from(propertyRecordingRowsTable)
-    .where(
-      and(
-        eq(propertyRecordingRowsTable.thingId, thingId),
-        eq(propertyRecordingRowsTable.propertyId, propertyId)
-      )
-    )
-    .orderBy(asc(propertyRecordingRowsTable.recordedAt), asc(propertyRecordingRowsTable.id));
-
+async function getDisplayFormatContext(thingId: string, propertyId: string): Promise<{
+  shouldFormatFloat: boolean;
+  decimalPlaces: number | null;
+}> {
   const [overrideRow, globalRow] = await Promise.all([
     db.query.propertyDisplayOverridesTable.findFirst({
       where: and(
@@ -296,7 +291,30 @@ export async function buildRecordingCsv(thingId: string, propertyId: string): Pr
   } catch {
     propertyType = null;
   }
-  const shouldFormatFloat = isFloatType(propertyType);
+
+  return {
+    shouldFormatFloat: isFloatType(propertyType),
+    decimalPlaces,
+  };
+}
+
+export async function buildRecordingCsv(thingId: string, propertyId: string): Promise<string> {
+  const rows = await db
+    .select({
+      recordedAt: propertyRecordingRowsTable.recordedAt,
+      value: propertyRecordingRowsTable.value,
+      alertCount: propertyRecordingRowsTable.alertCount,
+    })
+    .from(propertyRecordingRowsTable)
+    .where(
+      and(
+        eq(propertyRecordingRowsTable.thingId, thingId),
+        eq(propertyRecordingRowsTable.propertyId, propertyId)
+      )
+    )
+    .orderBy(asc(propertyRecordingRowsTable.recordedAt), asc(propertyRecordingRowsTable.id));
+
+  const { shouldFormatFloat, decimalPlaces } = await getDisplayFormatContext(thingId, propertyId);
 
   const lines = ["datetime,value,alerts"];
   for (const row of rows) {
