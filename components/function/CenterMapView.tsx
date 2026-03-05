@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchThing } from "@/lib/actions/arduino";
+import { FormattedDateTime } from "@/components/FormattedDateTime";
 
 export type CenterMapSystemView = {
   key: string;
@@ -376,7 +377,11 @@ export function CenterMapView({
                 </p>
                 <p>
                   <span className="font-semibold">Last Active:</span>{" "}
-                  {activeSystem.assignedDevice?.lastActivityAt ?? "N/A"}
+                  {activeSystem.assignedDevice?.lastActivityAt ? (
+                    <FormattedDateTime iso={activeSystem.assignedDevice.lastActivityAt} />
+                  ) : (
+                    "N/A"
+                  )}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">Alerts:</span>
