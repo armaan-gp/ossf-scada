@@ -10,9 +10,18 @@ interface DevicePropertiesProps {
     initialProperties: any[];
     initialAlertMap: Record<string, boolean>;
     initialRecordingConfigMap: Record<string, { enabled: boolean; intervalMinutes: number | null; maxRows: number | null }>;
+    globalDecimalPlaces: number | null;
+    propertyDecimalPlacesMap: Record<string, number | null>;
 }
 
-export function DeviceProperties({ thingId, initialProperties, initialAlertMap, initialRecordingConfigMap }: DevicePropertiesProps) {
+export function DeviceProperties({
+    thingId,
+    initialProperties,
+    initialAlertMap,
+    initialRecordingConfigMap,
+    globalDecimalPlaces,
+    propertyDecimalPlacesMap,
+}: DevicePropertiesProps) {
     const [properties, setProperties] = useState(initialProperties);
     const [alertMap, setAlertMap] = useState<Record<string, boolean>>(initialAlertMap);
 
@@ -49,6 +58,8 @@ export function DeviceProperties({ thingId, initialProperties, initialAlertMap, 
                     onUpdate={refreshProperties}
                     inAlert={alertMap[property.id] ?? false}
                     recordingConfig={initialRecordingConfigMap[property.id]}
+                    globalDecimalPlaces={globalDecimalPlaces}
+                    propertyDecimalPlacesMap={propertyDecimalPlacesMap}
                 />
             ))}
         </div>

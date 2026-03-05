@@ -1,29 +1,24 @@
 import { getCenterMapAssignments } from "@/app/actions/centerMap";
+import { getDecimalPlacesMap, getGlobalDecimalPlaces } from "@/app/actions/settings";
 import { CenterMapView, type CenterMapSystemView } from "@/components/function/CenterMapView";
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
 import { getDevices, getThing } from "@/lib/arduinoInit";
 import { CENTER_MAP_SYSTEMS } from "@/lib/centerMapLayout";
+import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export default async function CenterMapPage() {
-  const [devices, assignmentMap] = await Promise.all([getDevices(), getCenterMapAssignments()]);
+  const [devices, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap] = await Promise.all([
+    getDevices(),
+    getCenterMapAssignments(),
+    getGlobalDecimalPlaces(),
+    getDecimalPlacesMap(),
+  ]);
 
   const normalizeLastActivityAt = (value: unknown): string | null => {
     if (!value) return null;
     if (typeof value === "string") return value;
     if (value instanceof Date) return value.toISOString();
     return String(value);
-  };
-  const normalizeDisplayValue = (value: unknown): string => {
-    if (value === null || value === undefined) return "N/A";
-    if (value instanceof Date) return value.toISOString();
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      return String(value);
-    }
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "N/A";
-    }
   };
 
   const devicesForSelect = devices.map((device) => ({
@@ -43,7 +38,10 @@ export default async function CenterMapPage() {
       },
     ])
   );
-  const thingCache = new Map<string, Promise<{ properties?: Array<{ id: string; name?: string; variable_name?: string; last_value?: unknown }> }>>();
+  const thingCache = new Map<
+    string,
+    Promise<{ properties?: Array<{ id: string; name?: string; variable_name?: string; type?: string; last_value?: unknown }> }>
+  >();
 
   const getThingCached = async (thingId: string) => {
     if (!thingCache.has(thingId)) {
@@ -69,7 +67,10 @@ export default async function CenterMapPage() {
         properties = (thing.properties ?? []).map((prop) => ({
           id: prop.id,
           name: prop.name ?? prop.variable_name ?? prop.id,
-          value: normalizeDisplayValue(prop.last_value),
+          value: formatNumericDisplayValue(
+            prop.last_value,
+            resolvePropertyDecimalPlaces(assignedDevice.thingId, prop.id, globalDecimalPlaces, propertyDecimalPlacesMap)
+          ),
           inAlert: alertIds.has(prop.id),
         }));
         alertCount = result.alertCount;
@@ -97,7 +98,12 @@ export default async function CenterMapPage() {
             Assign PLCs to OSSF systems and monitor alert status at a glance
           </p>
         </div>
-        <CenterMapView systems={systems} devices={devicesForSelect} />
+        <CenterMapView
+          systems={systems}
+          devices={devicesForSelect}
+          globalDecimalPlaces={globalDecimalPlaces}
+          propertyDecimalPlacesMap={propertyDecimalPlacesMap}
+        />
       </div>
     </main>
   );

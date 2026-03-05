@@ -5,6 +5,8 @@ import {
   smsConfigTable,
   alertNotificationsTable,
   propertyAlertThresholdsTable,
+  propertyDisplayOverridesTable,
+  propertyDisplaySettingsTable,
 } from "@/db/schema";
 import { encrypt } from "@/lib/encrypt";
 import { eq, and } from "drizzle-orm";
@@ -231,4 +233,93 @@ export async function getAlertStateForProperties(
     );
   }
   return result;
+}
+
+function normalizeDecimalPlaces(decimalPlaces: number | null): number | null {
+  if (decimalPlaces === null) return null;
+  if (!Number.isInteger(decimalPlaces)) {
+    throw new Error("Decimal places must be a whole number.");
+  }
+  if (decimalPlaces < 0 || decimalPlaces > 10) {
+    throw new Error("Decimal places must be between 0 and 10.");
+  }
+  return decimalPlaces;
+}
+
+export async function getGlobalDecimalPlaces(): Promise<number | null> {
+  const row = await db.query.propertyDisplaySettingsTable.findFirst();
+  return row?.globalDecimalPlaces ?? null;
+}
+
+export async function saveGlobalDecimalPlaces(decimalPlaces: number | null): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const normalized = normalizeDecimalPlaces(decimalPlaces);
+    const existing = await db.query.propertyDisplaySettingsTable.findFirst();
+    const row = {
+      globalDecimalPlaces: normalized,
+      updatedAt: new Date(),
+    };
+    if (existing) {
+      await db.update(propertyDisplaySettingsTable).set(row).where(eq(propertyDisplaySettingsTable.id, existing.id));
+    } else {
+      await db.insert(propertyDisplaySettingsTable).values(row);
+    }
+    revalidatePath("/app/settings");
+    revalidatePath("/app/device/[id]", "page");
+    revalidatePath("/app/center-map");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to save decimal setting" };
+  }
+}
+
+export async function getDecimalPlacesMap(): Promise<Record<string, number | null>> {
+  const rows = await db.select().from(propertyDisplayOverridesTable);
+  const map: Record<string, number | null> = {};
+  for (const row of rows) {
+    map[`${row.thingId}:${row.propertyId}`] = row.decimalPlaces ?? null;
+  }
+  return map;
+}
+
+export async function savePropertyDecimalPlaces(
+  thingId: string,
+  propertyId: string,
+  decimalPlaces: number | null
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const normalized = normalizeDecimalPlaces(decimalPlaces);
+    const existing = await db.query.propertyDisplayOverridesTable.findFirst({
+      where: and(
+        eq(propertyDisplayOverridesTable.thingId, thingId),
+        eq(propertyDisplayOverridesTable.propertyId, propertyId)
+      ),
+    });
+
+    if (existing) {
+      await db
+        .update(propertyDisplayOverridesTable)
+        .set({ decimalPlaces: normalized, updatedAt: new Date() })
+        .where(
+          and(
+            eq(propertyDisplayOverridesTable.thingId, thingId),
+            eq(propertyDisplayOverridesTable.propertyId, propertyId)
+          )
+        );
+    } else {
+      await db.insert(propertyDisplayOverridesTable).values({
+        thingId,
+        propertyId,
+        decimalPlaces: normalized,
+        updatedAt: new Date(),
+      });
+    }
+
+    revalidatePath("/app/settings");
+    revalidatePath("/app/device/[id]", "page");
+    revalidatePath("/app/center-map");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to save property decimal setting" };
+  }
 }

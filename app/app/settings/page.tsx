@@ -2,17 +2,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Settings } from "lucide-react"
 import { GmailAccountForm, SmsRecipientsForm } from "@/components/function/SmsConfigForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
-import { getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
+import { getDecimalPlacesMap, getGlobalDecimalPlaces, getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
 import { getAllRecordingConfigsMap } from "@/app/actions/recordings"
 import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
 import { PropertyRecordingEditor } from "@/components/function/PropertyRecordingEditor"
+import { PropertyValueDisplayEditor } from "@/components/function/PropertyValueDisplayEditor"
 
 export default async function SettingsPage() {
-  const [smsConfig, plcs, thresholdsMap, recordingConfigsMap] = await Promise.all([
+  const [smsConfig, plcs, thresholdsMap, recordingConfigsMap, globalDecimalPlaces, propertyDecimalsMap] = await Promise.all([
     getSmsConfig(),
     getPlcsWithProperties().catch(() => []),
     getThresholdsMap(),
     getAllRecordingConfigsMap(),
+    getGlobalDecimalPlaces(),
+    getDecimalPlacesMap(),
   ])
 
   return (
@@ -62,6 +65,22 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <AlertThresholdsEditor plcs={plcs} initialThresholds={thresholdsMap} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <CardTitle>Property value display</CardTitle>
+          <CardDescription>
+            Choose how many decimal places to show for PLC property values across the site. Set a global value or override specific properties.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PropertyValueDisplayEditor
+            plcs={plcs}
+            initialGlobalDecimalPlaces={globalDecimalPlaces}
+            initialPropertyDecimals={propertyDecimalsMap}
+          />
         </CardContent>
       </Card>
 

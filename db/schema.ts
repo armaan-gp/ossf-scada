@@ -82,6 +82,33 @@ export const propertyRecordingRowsTable = pgTable("property_recording_rows", {
 export type PropertyRecordingRow = typeof propertyRecordingRowsTable.$inferSelect;
 export type PropertyRecordingRowInsert = typeof propertyRecordingRowsTable.$inferInsert;
 
+// Global decimal-place display setting for PLC property values.
+export const propertyDisplaySettingsTable = pgTable("property_display_settings", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  globalDecimalPlaces: integer(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type PropertyDisplaySettings = typeof propertyDisplaySettingsTable.$inferSelect;
+export type PropertyDisplaySettingsInsert = typeof propertyDisplaySettingsTable.$inferInsert;
+
+// Per-property decimal-place display overrides.
+export const propertyDisplayOverridesTable = pgTable(
+  "property_display_overrides",
+  {
+    thingId: varchar({ length: 255 }).notNull(),
+    propertyId: varchar({ length: 255 }).notNull(),
+    decimalPlaces: integer(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.thingId, table.propertyId] }),
+  ]
+);
+
+export type PropertyDisplayOverride = typeof propertyDisplayOverridesTable.$inferSelect;
+export type PropertyDisplayOverrideInsert = typeof propertyDisplayOverridesTable.$inferInsert;
+
 // Global assignment of OSSF center systems to PLC device IDs.
 export const centerMapAssignmentsTable = pgTable("center_map_assignments", {
   systemKey: varchar({ length: 64 }).primaryKey(),

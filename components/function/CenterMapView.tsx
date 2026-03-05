@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchThing } from "@/lib/actions/arduino";
 import { FormattedDateTime } from "@/components/FormattedDateTime";
+import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export type CenterMapSystemView = {
   key: string;
@@ -55,9 +56,13 @@ type SelectDevice = {
 export function CenterMapView({
   systems,
   devices,
+  globalDecimalPlaces,
+  propertyDecimalPlacesMap,
 }: {
   systems: CenterMapSystemView[];
   devices: SelectDevice[];
+  globalDecimalPlaces: number | null;
+  propertyDecimalPlacesMap: Record<string, number | null>;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -102,19 +107,6 @@ export function CenterMapView({
     let cancelled = false;
     let polling = false;
 
-    const normalizeDisplayValue = (value: unknown): string => {
-      if (value === null || value === undefined) return "N/A";
-      if (value instanceof Date) return value.toISOString();
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        return String(value);
-      }
-      try {
-        return JSON.stringify(value);
-      } catch {
-        return "N/A";
-      }
-    };
-
     const refreshAssignedSystems = async () => {
       if (polling) return;
       polling = true;
@@ -138,7 +130,10 @@ export function CenterMapView({
             const properties = thingProps.map((prop) => ({
               id: prop.id,
               name: prop.name ?? prop.variable_name ?? prop.id,
-              value: normalizeDisplayValue(prop.last_value),
+              value: formatNumericDisplayValue(
+                prop.last_value,
+                resolvePropertyDecimalPlaces(thingId, prop.id, globalDecimalPlaces, propertyDecimalPlacesMap)
+              ),
               inAlert: false,
             }));
 
@@ -189,7 +184,7 @@ export function CenterMapView({
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [globalDecimalPlaces, propertyDecimalPlacesMap]);
 
   function getSelectedDeviceId(systemKey: string): string | undefined {
     const selected = selectedBySystem[systemKey];

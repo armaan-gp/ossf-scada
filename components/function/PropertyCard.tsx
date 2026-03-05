@@ -11,6 +11,7 @@ import { FormattedDateTime } from "@/components/FormattedDateTime";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPropertyRecordingPreview } from "@/app/actions/recordings";
+import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 interface ArduinoProperty {
     id: string;
@@ -35,9 +36,19 @@ interface PropertyCardProps {
         intervalMinutes: number | null;
         maxRows: number | null;
     };
+    globalDecimalPlaces: number | null;
+    propertyDecimalPlacesMap: Record<string, number | null>;
 }
 
-export function PropertyCard({ property, thingId, onUpdate, inAlert = false, recordingConfig }: PropertyCardProps) {
+export function PropertyCard({
+    property,
+    thingId,
+    onUpdate,
+    inAlert = false,
+    recordingConfig,
+    globalDecimalPlaces,
+    propertyDecimalPlacesMap,
+}: PropertyCardProps) {
     const [isUpdating, setIsUpdating] = useState(false);
     const [optimisticValue, setOptimisticValue] = useState<any>(null);
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -45,6 +56,8 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
     const [previewRows, setPreviewRows] = useState<Array<{ recordedAt: Date; value: string; alertCount: number }>>([]);
 
     const displayValue = optimisticValue !== null ? optimisticValue : property.last_value;
+    const decimalPlaces = resolvePropertyDecimalPlaces(thingId, property.id, globalDecimalPlaces, propertyDecimalPlacesMap);
+    const displayValueText = formatNumericDisplayValue(displayValue, decimalPlaces);
     const isRecordingEnabled = recordingConfig?.enabled === true;
     const csvUrl = `/api/recordings/${encodeURIComponent(thingId)}/${encodeURIComponent(property.id)}/csv`;
 
@@ -115,7 +128,7 @@ export function PropertyCard({ property, thingId, onUpdate, inAlert = false, rec
                     <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Current Value</h4>
                         <div className="text-xl font-semibold">
-                            {property.type === "STATUS" ? (displayValue ? "True" : "False") : displayValue}
+                            {property.type === "STATUS" ? (displayValue ? "True" : "False") : displayValueText}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Last updated: <FormattedDateTime iso={property.value_updated_at} />
