@@ -11,7 +11,7 @@ import { FormattedDateTime } from "@/components/FormattedDateTime";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPropertyRecordingPreview } from "@/app/actions/recordings";
-import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
+import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 interface ArduinoProperty {
     id: string;
@@ -57,7 +57,7 @@ export function PropertyCard({
 
     const displayValue = optimisticValue !== null ? optimisticValue : property.last_value;
     const decimalPlaces = resolvePropertyDecimalPlaces(thingId, property.id, globalDecimalPlaces, propertyDecimalPlacesMap);
-    const displayValueText = formatNumericDisplayValue(displayValue, decimalPlaces);
+    const displayValueText = formatPropertyDisplayValue(displayValue, property.type, decimalPlaces);
     const isRecordingEnabled = recordingConfig?.enabled === true;
     const csvUrl = `/api/recordings/${encodeURIComponent(thingId)}/${encodeURIComponent(property.id)}/csv`;
 

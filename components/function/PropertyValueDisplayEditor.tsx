@@ -13,9 +13,9 @@ function key(thingId: string, propertyId: string): string {
   return `${thingId}:${propertyId}`;
 }
 
-function isNumericProperty(type: string): boolean {
+function isFloatProperty(type: string): boolean {
   const normalized = (type ?? "").toUpperCase();
-  return normalized === "INT" || normalized === "FLOAT";
+  return normalized === "FLOAT";
 }
 
 type RowState = {
@@ -169,7 +169,7 @@ export function PropertyValueDisplayEditor({
           {selectedPlc.properties.map((prop) => {
             const k = key(selectedPlc.thingId, prop.id);
             const row = rows[k] ?? { raw: "", saved: null };
-            const numeric = isNumericProperty(prop.type);
+            const numeric = isFloatProperty(prop.type);
             return (
               <div key={k} className="border rounded-md p-3 space-y-2">
                 <div>
@@ -202,7 +202,7 @@ export function PropertyValueDisplayEditor({
                     </p>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Not applicable for this property type.</p>
+                  <p className="text-xs text-muted-foreground">Only FLOAT properties can use decimal-place display settings.</p>
                 )}
               </div>
             );

@@ -3,6 +3,8 @@ import "server-only";
 import { db } from "@/db";
 import {
   propertyAlertThresholdsTable,
+  propertyDisplayOverridesTable,
+  propertyDisplaySettingsTable,
   propertyRecordingConfigsTable,
   propertyRecordingRowsTable,
 } from "@/db/schema";
@@ -247,6 +249,18 @@ function escapeCsvValue(raw: string): string {
   return raw;
 }
 
+function isFloatType(type: string | null | undefined): boolean {
+  return (type ?? "").toUpperCase() === "FLOAT";
+}
+
+function formatCsvRecordedValueForFloat(raw: string, decimalPlaces: number | null): string {
+  if (decimalPlaces === null) return raw;
+  if (raw.trim() === "") return raw;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return raw;
+  return parsed.toFixed(decimalPlaces);
+}
+
 export async function buildRecordingCsv(thingId: string, propertyId: string): Promise<string> {
   const rows = await db
     .select({
@@ -263,11 +277,35 @@ export async function buildRecordingCsv(thingId: string, propertyId: string): Pr
     )
     .orderBy(asc(propertyRecordingRowsTable.recordedAt), asc(propertyRecordingRowsTable.id));
 
+  const [overrideRow, globalRow] = await Promise.all([
+    db.query.propertyDisplayOverridesTable.findFirst({
+      where: and(
+        eq(propertyDisplayOverridesTable.thingId, thingId),
+        eq(propertyDisplayOverridesTable.propertyId, propertyId)
+      ),
+    }),
+    db.query.propertyDisplaySettingsTable.findFirst(),
+  ]);
+  const decimalPlaces = overrideRow?.decimalPlaces ?? globalRow?.globalDecimalPlaces ?? null;
+
+  let propertyType: string | null = null;
+  try {
+    const thing = await getThing(thingId);
+    const property = (thing.properties ?? []).find((p: { id: string; type?: string }) => p.id === propertyId);
+    propertyType = property?.type ?? null;
+  } catch {
+    propertyType = null;
+  }
+  const shouldFormatFloat = isFloatType(propertyType);
+
   const lines = ["datetime,value,alerts"];
   for (const row of rows) {
     const datetimeIso = row.recordedAt.toISOString();
+    const value = shouldFormatFloat
+      ? formatCsvRecordedValueForFloat(row.value, decimalPlaces)
+      : row.value;
     lines.push(
-      `${escapeCsvValue(datetimeIso)},${escapeCsvValue(row.value)},${row.alertCount}`
+      `${escapeCsvValue(datetimeIso)},${escapeCsvValue(value)},${row.alertCount}`
     );
   }
   return lines.join("\n");

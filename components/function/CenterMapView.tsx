@@ -26,7 +26,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchThing } from "@/lib/actions/arduino";
 import { FormattedDateTime } from "@/components/FormattedDateTime";
-import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
+import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export type CenterMapSystemView = {
   key: string;
@@ -130,8 +130,9 @@ export function CenterMapView({
             const properties = thingProps.map((prop) => ({
               id: prop.id,
               name: prop.name ?? prop.variable_name ?? prop.id,
-              value: formatNumericDisplayValue(
+              value: formatPropertyDisplayValue(
                 prop.last_value,
+                prop.type ?? "",
                 resolvePropertyDecimalPlaces(thingId, prop.id, globalDecimalPlaces, propertyDecimalPlacesMap)
               ),
               inAlert: false,

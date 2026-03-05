@@ -11,6 +11,10 @@ export function normalizeDisplayValue(value: unknown): string {
   }
 }
 
+function isFloatPropertyType(propertyType: string | null | undefined): boolean {
+  return (propertyType ?? "").toUpperCase() === "FLOAT";
+}
+
 export function resolvePropertyDecimalPlaces(
   thingId: string,
   propertyId: string,
@@ -21,9 +25,23 @@ export function resolvePropertyDecimalPlaces(
   return perProperty ?? globalDecimalPlaces ?? null;
 }
 
-export function formatNumericDisplayValue(value: unknown, decimalPlaces: number | null): string {
-  if (typeof value !== "number" || !Number.isFinite(value) || decimalPlaces === null) {
+export function formatPropertyDisplayValue(
+  value: unknown,
+  propertyType: string | null | undefined,
+  decimalPlaces: number | null
+): string {
+  if (!isFloatPropertyType(propertyType) || decimalPlaces === null) {
     return normalizeDisplayValue(value);
   }
-  return value.toFixed(decimalPlaces);
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toFixed(decimalPlaces);
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed.toFixed(decimalPlaces);
+  }
+
+  return normalizeDisplayValue(value);
 }

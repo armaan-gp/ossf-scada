@@ -4,7 +4,7 @@ import { CenterMapView, type CenterMapSystemView } from "@/components/function/C
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
 import { getDevices, getThing } from "@/lib/arduinoInit";
 import { CENTER_MAP_SYSTEMS } from "@/lib/centerMapLayout";
-import { formatNumericDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
+import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export default async function CenterMapPage() {
   const [devices, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap] = await Promise.all([
@@ -67,8 +67,9 @@ export default async function CenterMapPage() {
         properties = (thing.properties ?? []).map((prop) => ({
           id: prop.id,
           name: prop.name ?? prop.variable_name ?? prop.id,
-          value: formatNumericDisplayValue(
+          value: formatPropertyDisplayValue(
             prop.last_value,
+            prop.type ?? "",
             resolvePropertyDecimalPlaces(assignedDevice.thingId, prop.id, globalDecimalPlaces, propertyDecimalPlacesMap)
           ),
           inAlert: alertIds.has(prop.id),
