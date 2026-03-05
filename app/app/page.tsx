@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { getDevices } from "@/lib/arduinoInit"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
 import React from "react"
+import { AlertEventsCsvCard } from "@/components/function/AlertEventsCsvCard"
 
 export default async function Page() {
     const devices = await getDevices();
@@ -79,6 +80,9 @@ export default async function Page() {
                     </Card>
                 </div>
 
+                <div className="mt-8">
+                    <AlertEventsCsvCard />
+                </div>
                 <PLCTable devices={devices} deviceAlertMap={deviceAlertMap} />
             </div>
         </main>

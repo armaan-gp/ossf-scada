@@ -36,6 +36,41 @@ export const alertNotificationsTable = pgTable("alert_notifications", {
 export type AlertNotification = typeof alertNotificationsTable.$inferSelect;
 export type AlertNotificationInsert = typeof alertNotificationsTable.$inferInsert;
 
+// Tracks currently active alert episodes by (thing, property) to detect new alert starts.
+export const activeAlertEpisodesTable = pgTable(
+  "active_alert_episodes",
+  {
+    thingId: varchar({ length: 255 }).notNull(),
+    propertyId: varchar({ length: 255 }).notNull(),
+    thingName: varchar({ length: 255 }).notNull(),
+    propertyName: varchar({ length: 255 }).notNull(),
+    propertyType: varchar({ length: 64 }).notNull(),
+    startedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.thingId, table.propertyId] }),
+  ]
+);
+
+export type ActiveAlertEpisode = typeof activeAlertEpisodesTable.$inferSelect;
+export type ActiveAlertEpisodeInsert = typeof activeAlertEpisodesTable.$inferInsert;
+
+// Alert history rows for dashboard preview and CSV export.
+export const alertEventsTable = pgTable("alert_events", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  thingId: varchar({ length: 255 }).notNull(),
+  thingName: varchar({ length: 255 }).notNull(),
+  propertyId: varchar({ length: 255 }).notNull(),
+  propertyName: varchar({ length: 255 }).notNull(),
+  propertyType: varchar({ length: 64 }).notNull(),
+  valueRaw: text().notNull(),
+  occurredAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type AlertEvent = typeof alertEventsTable.$inferSelect;
+export type AlertEventInsert = typeof alertEventsTable.$inferInsert;
+
 // Per-property alert thresholds (editable per PLC property)
 export const propertyAlertThresholdsTable = pgTable("property_alert_thresholds", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
