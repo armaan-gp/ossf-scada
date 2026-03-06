@@ -153,6 +153,8 @@ export function CenterMapView({
   const [isEditMode, setIsEditMode] = useState(false);
   const [layoutPending, setLayoutPending] = useState(false);
   const [draftBoxes, setDraftBoxes] = useState<DraftBox[]>([]);
+  const [renameBoxId, setRenameBoxId] = useState<DraftBoxId | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const [selectedBySystem, setSelectedBySystem] = useState<Record<string, string | undefined>>(() => {
     const validIds = new Set(devices.map((d) => d.id));
@@ -194,9 +196,20 @@ export function CenterMapView({
     if (!isEditMode || !isMobile) return;
     setIsEditMode(false);
     setDraftBoxes([]);
+    setRenameBoxId(null);
+    setRenameValue("");
     setOpenSystemId(null);
     toast({ title: "Edit mode disabled", description: "Map layout editing is available on desktop/tablet only." });
   }, [isEditMode, isMobile, toast]);
+
+  useEffect(() => {
+    if (renameBoxId === null) return;
+    const stillExists = draftBoxes.some((box) => box.id === renameBoxId);
+    if (!stillExists) {
+      setRenameBoxId(null);
+      setRenameValue("");
+    }
+  }, [draftBoxes, renameBoxId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -438,6 +451,8 @@ export function CenterMapView({
   function handleCancelEdit() {
     setIsEditMode(false);
     setDraftBoxes([]);
+    setRenameBoxId(null);
+    setRenameValue("");
   }
 
   function handleAddBox() {
@@ -460,6 +475,10 @@ export function CenterMapView({
   }
 
   function handleDeleteDraftBox(boxId: DraftBoxId) {
+    if (renameBoxId === boxId) {
+      setRenameBoxId(null);
+      setRenameValue("");
+    }
     setDraftBoxes((curr) =>
       curr
         .filter((box) => box.id !== boxId)
@@ -472,6 +491,28 @@ export function CenterMapView({
 
   function handleDraftNameChange(boxId: DraftBoxId, nextName: string) {
     setDraftBoxes((curr) => curr.map((box) => (box.id === boxId ? { ...box, label: nextName } : box)));
+  }
+
+  function openRenameDialog(box: DraftBox) {
+    setRenameBoxId(box.id);
+    setRenameValue(box.label);
+  }
+
+  function closeRenameDialog() {
+    setRenameBoxId(null);
+    setRenameValue("");
+  }
+
+  function handleRenameSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (renameBoxId === null) return;
+    const nextName = renameValue.trim();
+    if (!nextName) {
+      toast({ title: "Name required", description: "Location name cannot be blank.", variant: "destructive" });
+      return;
+    }
+    handleDraftNameChange(renameBoxId, nextName);
+    closeRenameDialog();
   }
 
   function handleDragStart(event: React.MouseEvent<HTMLDivElement>, box: DraftBox) {
@@ -597,13 +638,20 @@ export function CenterMapView({
       >
         <div className="flex h-full min-w-0 flex-col gap-2">
           <div className="flex items-start gap-2" data-no-drag="true">
-            <Input
-              value={box.label}
-              onChange={(event) => handleDraftNameChange(box.id, event.target.value)}
-              className="h-8 text-xs select-text"
-              placeholder="Location name"
+            <p className="flex-1 min-w-0 text-xs leading-tight font-semibold text-slate-900 break-words">
+              {box.label}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground shrink-0"
+              onClick={() => openRenameDialog(box)}
               data-no-drag="true"
-            />
+              aria-label="Rename location"
+            >
+              <PencilLine className="h-4 w-4" />
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -812,6 +860,36 @@ export function CenterMapView({
               </DialogFooter>
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={renameBoxId !== null}
+        onOpenChange={(open) => {
+          if (!open) closeRenameDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleRenameSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Rename Location</DialogTitle>
+              <DialogDescription>Update the location name used on the center map.</DialogDescription>
+            </DialogHeader>
+            <div>
+              <Input
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+                placeholder="Location name"
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={closeRenameDialog}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Name</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
