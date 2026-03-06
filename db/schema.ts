@@ -144,9 +144,25 @@ export const propertyDisplayOverridesTable = pgTable(
 export type PropertyDisplayOverride = typeof propertyDisplayOverridesTable.$inferSelect;
 export type PropertyDisplayOverrideInsert = typeof propertyDisplayOverridesTable.$inferInsert;
 
-// Global assignment of OSSF center systems to PLC device IDs.
+// User-defined center map boxes/layout.
+export const centerMapBoxesTable = pgTable("center_map_boxes", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar({ length: 255 }).notNull(),
+  left: real().notNull(),
+  top: real().notNull(),
+  width: real().notNull().default(9),
+  height: real().notNull().default(26),
+  rotate: real(),
+  sortOrder: integer().notNull().default(0),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type CenterMapBox = typeof centerMapBoxesTable.$inferSelect;
+export type CenterMapBoxInsert = typeof centerMapBoxesTable.$inferInsert;
+
+// Global assignment of center map boxes to PLC device IDs.
 export const centerMapAssignmentsTable = pgTable("center_map_assignments", {
-  systemKey: varchar({ length: 64 }).primaryKey(),
+  boxId: integer().primaryKey().references(() => centerMapBoxesTable.id, { onDelete: "cascade" }),
   deviceId: varchar({ length: 255 }),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

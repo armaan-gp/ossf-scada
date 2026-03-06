@@ -1,17 +1,19 @@
-import { getCenterMapAssignments } from "@/app/actions/centerMap";
+import { getCenterMapAssignments, getCenterMapBoxes } from "@/app/actions/centerMap";
 import { getDecimalPlacesMap, getGlobalDecimalPlaces } from "@/app/actions/settings";
 import { CenterMapView, type CenterMapSystemView } from "@/components/function/CenterMapView";
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
+import { getUser } from "@/lib/actions/auth";
 import { getDevices, getThing } from "@/lib/arduinoInit";
-import { CENTER_MAP_SYSTEMS } from "@/lib/centerMapLayout";
 import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export default async function CenterMapPage() {
-  const [devices, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap] = await Promise.all([
+  const [devices, boxes, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap, user] = await Promise.all([
     getDevices(),
+    getCenterMapBoxes(),
     getCenterMapAssignments(),
     getGlobalDecimalPlaces(),
     getDecimalPlacesMap(),
+    getUser(),
   ]);
 
   const normalizeLastActivityAt = (value: unknown): string | null => {
@@ -38,6 +40,7 @@ export default async function CenterMapPage() {
       },
     ])
   );
+
   const thingCache = new Map<
     string,
     Promise<{ properties?: Array<{ id: string; name?: string; variable_name?: string; type?: string; last_value?: unknown }> }>
@@ -51,8 +54,8 @@ export default async function CenterMapPage() {
   };
 
   const systems: CenterMapSystemView[] = [];
-  for (const system of CENTER_MAP_SYSTEMS) {
-    const assignedDeviceId = assignmentMap[system.key] ?? null;
+  for (const box of boxes) {
+    const assignedDeviceId = assignmentMap[box.id] ?? null;
     const assignedDevice = assignedDeviceId ? devicesById.get(assignedDeviceId) : undefined;
     let alertCount: number | null = null;
     let properties: Array<{ id: string; name: string; value: string; inAlert: boolean }> = [];
@@ -64,6 +67,7 @@ export default async function CenterMapPage() {
           sendEmailsForNewAlerts: false,
         });
         const alertIds = new Set(result.alerts.filter((a) => a.inAlert).map((a) => a.propertyId));
+
         properties = (thing.properties ?? []).map((prop) => ({
           id: prop.id,
           name: prop.name ?? prop.variable_name ?? prop.id,
@@ -82,7 +86,14 @@ export default async function CenterMapPage() {
     }
 
     systems.push({
-      ...system,
+      id: box.id,
+      label: box.name,
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+      rotate: box.rotate,
+      sortOrder: box.sortOrder,
       assignedDeviceId,
       assignedDevice: assignedDevice ?? null,
       alertCount,
@@ -96,7 +107,7 @@ export default async function CenterMapPage() {
         <div className="tracking-tight font-bold">
           <p className="text-4xl text-tama font-serif">Center Map</p>
           <p className="text-sm font-semibold text-muted-foreground">
-            Assign PLCs to OSSF systems and monitor alert status at a glance
+            Assign PLCs to map locations and monitor alert status at a glance
           </p>
         </div>
         <CenterMapView
@@ -104,6 +115,7 @@ export default async function CenterMapPage() {
           devices={devicesForSelect}
           globalDecimalPlaces={globalDecimalPlaces}
           propertyDecimalPlacesMap={propertyDecimalPlacesMap}
+          canEditLayout={!!user?.isAdmin}
         />
       </div>
     </main>

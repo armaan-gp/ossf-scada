@@ -1,7 +1,8 @@
 "use client";
 
-import { setCenterMapAssignment } from "@/app/actions/centerMap";
+import { saveCenterMapLayout, setCenterMapAssignment } from "@/app/actions/centerMap";
 import { getAlertStateForProperties } from "@/app/actions/settings";
+import { FormattedDateTime } from "@/components/FormattedDateTime";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -18,24 +20,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { AlertTriangle, CheckCircle2, Circle, ExternalLink, Link2, Trash2 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { fetchThing } from "@/lib/actions/arduino";
-import { FormattedDateTime } from "@/components/FormattedDateTime";
 import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
+import { cn } from "@/lib/utils";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Circle,
+  ExternalLink,
+  Link2,
+  PencilLine,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type CenterMapSystemView = {
-  key: string;
+  id: number;
   label: string;
   left: number;
   top: number;
   width: number;
   height: number;
-  rotate?: number;
+  rotate?: number | null;
+  sortOrder: number;
   assignedDeviceId: string | null;
   assignedDevice: {
     id: string;
@@ -48,52 +62,125 @@ export type CenterMapSystemView = {
   properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>;
 };
 
+type DraftBoxId = number | string;
+
+type DraftBox = {
+  id: DraftBoxId;
+  label: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotate: number | null;
+  sortOrder: number;
+};
+
 type SelectDevice = {
   id: string;
   name: string;
 };
+
+type DragState = {
+  id: DraftBoxId;
+  startX: number;
+  startY: number;
+  originLeft: number;
+  originTop: number;
+  width: number;
+  height: number;
+};
+
+const DEFAULT_NEW_WIDTH = 9;
+const DEFAULT_NEW_HEIGHT = 26;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function makeSelectionKey(id: number): string {
+  return String(id);
+}
+
+function sortSystems(systems: CenterMapSystemView[]): CenterMapSystemView[] {
+  return [...systems].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.id - b.id;
+  });
+}
+
+function mapSystemToDraft(system: CenterMapSystemView): DraftBox {
+  return {
+    id: system.id,
+    label: system.label,
+    left: system.left,
+    top: system.top,
+    width: system.width,
+    height: system.height,
+    rotate: system.rotate ?? null,
+    sortOrder: system.sortOrder,
+  };
+}
+
+function pickNextLocationName(existingLabels: string[]): string {
+  const used = new Set(existingLabels.map((label) => label.trim().toLowerCase()));
+  let n = 1;
+  while (used.has(`location ${n}`)) n++;
+  return `Location ${n}`;
+}
 
 export function CenterMapView({
   systems,
   devices,
   globalDecimalPlaces,
   propertyDecimalPlacesMap,
+  canEditLayout,
 }: {
   systems: CenterMapSystemView[];
   devices: SelectDevice[];
   globalDecimalPlaces: number | null;
   propertyDecimalPlacesMap: Record<string, number | null>;
+  canEditLayout: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [systemState, setSystemState] = useState<CenterMapSystemView[]>(systems);
-  const [pendingSystemKey, setPendingSystemKey] = useState<string | null>(null);
-  const [openSystemKey, setOpenSystemKey] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const mapCanvasRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+
+  const [systemState, setSystemState] = useState<CenterMapSystemView[]>(() => sortSystems(systems));
+  const [pendingSystemId, setPendingSystemId] = useState<number | null>(null);
+  const [openSystemId, setOpenSystemId] = useState<number | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [layoutPending, setLayoutPending] = useState(false);
+  const [draftBoxes, setDraftBoxes] = useState<DraftBox[]>([]);
+
   const [selectedBySystem, setSelectedBySystem] = useState<Record<string, string | undefined>>(() => {
     const validIds = new Set(devices.map((d) => d.id));
     const initial: Record<string, string | undefined> = {};
     for (const system of systems) {
-      initial[system.key] =
+      const key = makeSelectionKey(system.id);
+      initial[key] =
         system.assignedDeviceId && validIds.has(system.assignedDeviceId) ? system.assignedDeviceId : undefined;
     }
     return initial;
   });
 
-  const devicesById = useMemo(() => {
-    return new Map(devices.map((d) => [d.id, d]));
-  }, [devices]);
+  const devicesById = useMemo(() => new Map(devices.map((d) => [d.id, d])), [devices]);
   const validDeviceIds = useMemo(() => new Set(devices.map((d) => d.id)), [devices]);
   const systemStateRef = useRef<CenterMapSystemView[]>(systemState);
 
-  const activeSystem = openSystemKey ? systemState.find((s) => s.key === openSystemKey) ?? null : null;
-  const isActiveSystemPending = activeSystem ? pendingSystemKey === activeSystem.key : false;
+  const activeSystem = openSystemId ? systemState.find((s) => s.id === openSystemId) ?? null : null;
+  const isActiveSystemPending = activeSystem ? pendingSystemId === activeSystem.id : false;
+
+  const activeById = useMemo(() => new Map(systemState.map((system) => [system.id, system])), [systemState]);
 
   useEffect(() => {
-    setSystemState(systems);
+    setSystemState(sortSystems(systems));
     const validIds = new Set(devices.map((d) => d.id));
     const nextSelection: Record<string, string | undefined> = {};
     for (const system of systems) {
-      nextSelection[system.key] =
+      const key = makeSelectionKey(system.id);
+      nextSelection[key] =
         system.assignedDeviceId && validIds.has(system.assignedDeviceId) ? system.assignedDeviceId : undefined;
     }
     setSelectedBySystem(nextSelection);
@@ -102,6 +189,14 @@ export function CenterMapView({
   useEffect(() => {
     systemStateRef.current = systemState;
   }, [systemState]);
+
+  useEffect(() => {
+    if (!isEditMode || !isMobile) return;
+    setIsEditMode(false);
+    setDraftBoxes([]);
+    setOpenSystemId(null);
+    toast({ title: "Edit mode disabled", description: "Map layout editing is available on desktop/tablet only." });
+  }, [isEditMode, isMobile, toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,20 +247,23 @@ export function CenterMapView({
               inAlert: alertMap[prop.id] ?? false,
             }));
 
-            return { key: system.key, properties: propertiesWithAlert, alertCount };
+            return { id: system.id, properties: propertiesWithAlert, alertCount };
           })
         );
 
         if (cancelled) return;
         const updateMap = new Map(
           updates
-            .filter((u): u is { key: string; properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>; alertCount: number } => !!u)
-            .map((u) => [u.key, u])
+            .filter(
+              (u): u is { id: number; properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>; alertCount: number } =>
+                !!u
+            )
+            .map((u) => [u.id, u])
         );
 
         setSystemState((curr) =>
           curr.map((system) => {
-            const next = updateMap.get(system.key);
+            const next = updateMap.get(system.id);
             if (!next) return system;
             return {
               ...system,
@@ -187,8 +285,48 @@ export function CenterMapView({
     };
   }, [globalDecimalPlaces, propertyDecimalPlacesMap]);
 
-  function getSelectedDeviceId(systemKey: string): string | undefined {
-    const selected = selectedBySystem[systemKey];
+  const onDragMove = useCallback((event: MouseEvent) => {
+    const drag = dragStateRef.current;
+    const mapEl = mapCanvasRef.current;
+    if (!drag || !mapEl) return;
+
+    const rect = mapEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const deltaX = ((event.clientX - drag.startX) / rect.width) * 100;
+    const deltaY = ((event.clientY - drag.startY) / rect.height) * 100;
+
+    const nextLeft = clamp(drag.originLeft + deltaX, 0, 100 - drag.width);
+    const nextTop = clamp(drag.originTop + deltaY, 0, 100 - drag.height);
+
+    setDraftBoxes((curr) =>
+      curr.map((box) =>
+        box.id === drag.id
+          ? {
+              ...box,
+              left: nextLeft,
+              top: nextTop,
+            }
+          : box
+      )
+    );
+  }, []);
+
+  const stopDragging = useCallback(() => {
+    dragStateRef.current = null;
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", stopDragging);
+  }, [onDragMove]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", onDragMove);
+      window.removeEventListener("mouseup", stopDragging);
+    };
+  }, [onDragMove, stopDragging]);
+
+  function getSelectedDeviceId(systemId: number): string | undefined {
+    const selected = selectedBySystem[makeSelectionKey(systemId)];
     if (!selected || !validDeviceIds.has(selected)) return undefined;
     return selected;
   }
@@ -214,18 +352,18 @@ export function CenterMapView({
     };
   }
 
-  async function handleAssign(systemKey: string) {
-    const selectedDeviceId = getSelectedDeviceId(systemKey);
+  async function handleAssign(systemId: number) {
+    const selectedDeviceId = getSelectedDeviceId(systemId);
     if (!selectedDeviceId) {
       toast({ title: "No PLC selected", description: "Choose a PLC before connecting.", variant: "destructive" });
       return;
     }
 
     const previous = systemState;
-    setPendingSystemKey(systemKey);
+    setPendingSystemId(systemId);
     setSystemState((curr) =>
       curr.map((system) =>
-        system.key === systemKey
+        system.id === systemId
           ? {
               ...system,
               assignedDeviceId: selectedDeviceId,
@@ -243,24 +381,24 @@ export function CenterMapView({
       )
     );
 
-    const result = await setCenterMapAssignment(systemKey, selectedDeviceId);
-    setPendingSystemKey(null);
+    const result = await setCenterMapAssignment(systemId, selectedDeviceId);
+    setPendingSystemId(null);
     if (!result.ok) {
       setSystemState(previous);
       toast({ title: "Error", description: result.error ?? "Failed to connect PLC.", variant: "destructive" });
       return;
     }
 
-    toast({ title: "PLC connected", description: "System assignment updated." });
+    toast({ title: "PLC connected", description: "Map assignment updated." });
     router.refresh();
   }
 
-  async function handleRemove(systemKey: string) {
+  async function handleRemove(systemId: number) {
     const previous = systemState;
-    setPendingSystemKey(systemKey);
+    setPendingSystemId(systemId);
     setSystemState((curr) =>
       curr.map((system) =>
-            system.key === systemKey
+        system.id === systemId
           ? {
               ...system,
               assignedDeviceId: null,
@@ -272,21 +410,118 @@ export function CenterMapView({
       )
     );
 
-    const result = await setCenterMapAssignment(systemKey, null);
-    setPendingSystemKey(null);
+    const result = await setCenterMapAssignment(systemId, null);
+    setPendingSystemId(null);
     if (!result.ok) {
       setSystemState(previous);
       toast({ title: "Error", description: result.error ?? "Failed to remove PLC.", variant: "destructive" });
       return;
     }
 
-    setSelectedBySystem((curr) => ({ ...curr, [systemKey]: undefined }));
-    toast({ title: "PLC removed", description: "System assignment cleared." });
+    setSelectedBySystem((curr) => ({ ...curr, [makeSelectionKey(systemId)]: undefined }));
+    toast({ title: "PLC removed", description: "Map assignment cleared." });
     router.refresh();
   }
 
-  function openSystem(systemKey: string) {
-    setOpenSystemKey(systemKey);
+  function handleEnterEditMode() {
+    if (!canEditLayout) return;
+    if (isMobile) {
+      toast({ title: "Desktop required", description: "Map layout editing is available on desktop/tablet only." });
+      return;
+    }
+
+    setDraftBoxes(sortSystems(systemState).map(mapSystemToDraft));
+    setOpenSystemId(null);
+    setIsEditMode(true);
+  }
+
+  function handleCancelEdit() {
+    setIsEditMode(false);
+    setDraftBoxes([]);
+  }
+
+  function handleAddBox() {
+    setDraftBoxes((curr) => {
+      const nextLabel = pickNextLocationName(curr.map((box) => box.label));
+      return [
+        ...curr,
+        {
+          id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          label: nextLabel,
+          left: 45,
+          top: 35,
+          width: DEFAULT_NEW_WIDTH,
+          height: DEFAULT_NEW_HEIGHT,
+          rotate: null,
+          sortOrder: curr.length,
+        },
+      ];
+    });
+  }
+
+  function handleDeleteDraftBox(boxId: DraftBoxId) {
+    setDraftBoxes((curr) =>
+      curr
+        .filter((box) => box.id !== boxId)
+        .map((box, index) => ({
+          ...box,
+          sortOrder: index,
+        }))
+    );
+  }
+
+  function handleDraftNameChange(boxId: DraftBoxId, nextName: string) {
+    setDraftBoxes((curr) => curr.map((box) => (box.id === boxId ? { ...box, label: nextName } : box)));
+  }
+
+  function handleDragStart(event: React.MouseEvent<HTMLDivElement>, box: DraftBox) {
+    if (!isEditMode || isMobile || layoutPending) return;
+    if (event.button !== 0) return;
+    if (event.target instanceof HTMLElement && event.target.closest("[data-no-drag='true']")) return;
+
+    dragStateRef.current = {
+      id: box.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: box.left,
+      originTop: box.top,
+      width: box.width,
+      height: box.height,
+    };
+
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", stopDragging);
+  }
+
+  async function handleSaveLayout() {
+    const payload = draftBoxes.map((box, index) => ({
+      id: typeof box.id === "number" ? box.id : undefined,
+      name: box.label,
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+      rotate: box.rotate,
+      sortOrder: index,
+    }));
+
+    setLayoutPending(true);
+    const result = await saveCenterMapLayout(payload);
+    setLayoutPending(false);
+    if (!result.ok) {
+      toast({ title: "Error", description: result.error ?? "Failed to save map layout.", variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Layout saved", description: "Center map layout updated globally." });
+    setIsEditMode(false);
+    setDraftBoxes([]);
+    router.refresh();
+  }
+
+  function openSystem(systemId: number) {
+    if (isEditMode) return;
+    setOpenSystemId(systemId);
   }
 
   function renderSystemCard(system: CenterMapSystemView, absolute = false) {
@@ -294,9 +529,9 @@ export function CenterMapView({
 
     return (
       <button
-        key={system.key}
+        key={system.id}
         type="button"
-        onClick={() => openSystem(system.key)}
+        onClick={() => openSystem(system.id)}
         style={
           absolute
             ? {
@@ -330,11 +565,115 @@ export function CenterMapView({
     );
   }
 
+  function renderDraftCard(box: DraftBox) {
+    const persisted = typeof box.id === "number" ? activeById.get(box.id) ?? null : null;
+    const status = persisted ? getStatusDisplay(persisted) : getStatusDisplay({
+      id: -1,
+      label: box.label,
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+      rotate: box.rotate,
+      sortOrder: box.sortOrder,
+      assignedDeviceId: null,
+      assignedDevice: null,
+      alertCount: 0,
+      properties: [],
+    });
+
+    return (
+      <div
+        key={String(box.id)}
+        onMouseDown={(event) => handleDragStart(event, box)}
+        style={{
+          left: `${box.left}%`,
+          top: `${box.top}%`,
+          width: `${box.width}%`,
+          height: `${box.height}%`,
+        }}
+        className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden"
+      >
+        <div className="flex h-full min-w-0 flex-col gap-2">
+          <div className="flex items-start gap-2" data-no-drag="true">
+            <Input
+              value={box.label}
+              onChange={(event) => handleDraftNameChange(box.id, event.target.value)}
+              className="h-8 text-xs"
+              placeholder="Location name"
+              data-no-drag="true"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground shrink-0"
+              onClick={() => handleDeleteDraftBox(box.id)}
+              data-no-drag="true"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-center text-slate-600">{status.icon}</div>
+          <p className="text-[11px] leading-tight text-center text-slate-600 break-words">
+            {persisted?.assignedDeviceId
+              ? `PLC: ${persisted.assignedDevice?.name ?? persisted.assignedDeviceId}`
+              : "No PLC connected"}
+          </p>
+          <p className="mt-auto text-[10px] text-center text-slate-500">Drag to reposition</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-8">
+    <div className="mt-8 space-y-4">
+      {canEditLayout ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {!isEditMode ? (
+            <Button type="button" variant="outline" onClick={handleEnterEditMode}>
+              <PencilLine className="mr-1 h-4 w-4" />
+              Edit Layout
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={handleAddBox} disabled={layoutPending}>
+                <Plus className="mr-1 h-4 w-4" />
+                Add Box
+              </Button>
+              <Button type="button" onClick={handleSaveLayout} disabled={layoutPending || isMobile}>
+                <Save className="mr-1 h-4 w-4" />
+                {layoutPending ? "Saving..." : "Save Layout"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={handleCancelEdit} disabled={layoutPending}>
+                <X className="mr-1 h-4 w-4" />
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {isEditMode && isMobile ? (
+        <p className="text-sm text-muted-foreground">Layout editing is disabled on mobile screens.</p>
+      ) : null}
+
+      {!isEditMode && systemState.length === 0 ? (
+        <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
+          No map locations configured.
+          {canEditLayout ? " Use Edit Layout to add your first location." : " Ask an admin to add map locations."}
+        </div>
+      ) : null}
+
+      {isEditMode && draftBoxes.length === 0 ? (
+        <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
+          No map locations yet. Click Add Box to create one.
+        </div>
+      ) : null}
+
       <div className="hidden md:block">
-        <div className="relative w-full overflow-hidden rounded-xl border bg-white aspect-[16/8]">
-          {systemState.map((system) => renderSystemCard(system, true))}
+        <div ref={mapCanvasRef} className="relative w-full overflow-hidden rounded-xl border bg-white aspect-[16/8]">
+          {isEditMode ? draftBoxes.map((box) => renderDraftCard(box)) : systemState.map((system) => renderSystemCard(system, true))}
         </div>
       </div>
 
@@ -343,9 +682,9 @@ export function CenterMapView({
       </div>
 
       <Dialog
-        open={!!activeSystem}
+        open={!!activeSystem && !isEditMode}
         onOpenChange={(open) => {
-          if (!open) setOpenSystemKey(null);
+          if (!open) setOpenSystemId(null);
         }}
       >
         <DialogContent className="w-[95vw] max-h-[85vh] overflow-y-auto sm:max-w-2xl">
@@ -353,7 +692,7 @@ export function CenterMapView({
             <>
               <DialogHeader>
                 <DialogTitle>{activeSystem.label}</DialogTitle>
-                <DialogDescription>Basic PLC details for this system</DialogDescription>
+                <DialogDescription>Basic PLC details for this location</DialogDescription>
               </DialogHeader>
               <div className="space-y-2 text-sm">
                 <p>
@@ -387,11 +726,11 @@ export function CenterMapView({
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-semibold">Assign PLC</p>
                 <Select
-                  value={getSelectedDeviceId(activeSystem.key)}
+                  value={getSelectedDeviceId(activeSystem.id)}
                   onValueChange={(value) =>
                     setSelectedBySystem((curr) => ({
                       ...curr,
-                      [activeSystem.key]: value,
+                      [makeSelectionKey(activeSystem.id)]: value,
                     }))
                   }
                   disabled={isActiveSystemPending}
@@ -408,17 +747,14 @@ export function CenterMapView({
                   </SelectContent>
                 </Select>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    disabled={isActiveSystemPending || !getSelectedDeviceId(activeSystem.key)}
-                    onClick={() => handleAssign(activeSystem.key)}
-                  >
+                  <Button disabled={isActiveSystemPending || !getSelectedDeviceId(activeSystem.id)} onClick={() => handleAssign(activeSystem.id)}>
                     <Link2 className="mr-1 h-3.5 w-3.5" />
                     Connect
                   </Button>
                   <Button
                     variant="outline"
                     disabled={isActiveSystemPending || !activeSystem.assignedDeviceId}
-                    onClick={() => handleRemove(activeSystem.key)}
+                    onClick={() => handleRemove(activeSystem.id)}
                   >
                     <Trash2 className="mr-1 h-3.5 w-3.5" />
                     Remove PLC
