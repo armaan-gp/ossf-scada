@@ -174,8 +174,6 @@ export function CenterMapView({
   const activeSystem = openSystemId ? systemState.find((s) => s.id === openSystemId) ?? null : null;
   const isActiveSystemPending = activeSystem ? pendingSystemId === activeSystem.id : false;
 
-  const activeById = useMemo(() => new Map(systemState.map((system) => [system.id, system])), [systemState]);
-
   useEffect(() => {
     setSystemState(sortSystems(systems));
     const validIds = new Set(devices.map((d) => d.id));
@@ -608,22 +606,6 @@ export function CenterMapView({
   }
 
   function renderDraftCard(box: DraftBox) {
-    const persisted = typeof box.id === "number" ? activeById.get(box.id) ?? null : null;
-    const status = persisted ? getStatusDisplay(persisted) : getStatusDisplay({
-      id: -1,
-      label: box.label,
-      left: box.left,
-      top: box.top,
-      width: box.width,
-      height: box.height,
-      rotate: box.rotate,
-      sortOrder: box.sortOrder,
-      assignedDeviceId: null,
-      assignedDevice: null,
-      alertCount: 0,
-      properties: [],
-    });
-
     return (
       <div
         key={String(box.id)}
@@ -637,8 +619,8 @@ export function CenterMapView({
         className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden select-none"
       >
         <div className="flex h-full min-w-0 flex-col gap-2">
-          <div className="flex items-start gap-2" data-no-drag="true">
-            <p className="flex-1 min-w-0 text-xs leading-tight font-semibold text-slate-900 break-words">
+          <div className="flex items-center gap-1" data-no-drag="true">
+            <p className="flex-1 min-w-0 text-sm font-semibold text-slate-900 truncate">
               {box.label}
             </p>
             <Button
@@ -663,13 +645,8 @@ export function CenterMapView({
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center justify-center text-slate-600">{status.icon}</div>
-          <p className="text-[11px] leading-tight text-center text-slate-600 break-words">
-            {persisted?.assignedDeviceId
-              ? `PLC: ${persisted.assignedDevice?.name ?? persisted.assignedDeviceId}`
-              : "No PLC connected"}
-          </p>
-          <p className="mt-auto text-[10px] text-center text-slate-500">Drag to reposition</p>
+          <div className="flex-1" />
+          <p className="text-[11px] text-center text-slate-500">Drag to reposition</p>
         </div>
       </div>
     );
