@@ -478,6 +478,7 @@ export function CenterMapView({
     if (!isEditMode || isMobile || layoutPending) return;
     if (event.button !== 0) return;
     if (event.target instanceof HTMLElement && event.target.closest("[data-no-drag='true']")) return;
+    event.preventDefault();
 
     dragStateRef.current = {
       id: box.id,
@@ -592,14 +593,14 @@ export function CenterMapView({
           width: `${box.width}%`,
           height: `${box.height}%`,
         }}
-        className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden"
+        className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden select-none"
       >
         <div className="flex h-full min-w-0 flex-col gap-2">
           <div className="flex items-start gap-2" data-no-drag="true">
             <Input
               value={box.label}
               onChange={(event) => handleDraftNameChange(box.id, event.target.value)}
-              className="h-8 text-xs"
+              className="h-8 text-xs select-text"
               placeholder="Location name"
               data-no-drag="true"
             />
@@ -672,7 +673,13 @@ export function CenterMapView({
       ) : null}
 
       <div className="hidden md:block">
-        <div ref={mapCanvasRef} className="relative w-full overflow-hidden rounded-xl border bg-white aspect-[16/8]">
+        <div
+          ref={mapCanvasRef}
+          className={cn(
+            "relative w-full overflow-hidden rounded-xl border bg-white aspect-[16/8]",
+            isEditMode ? "select-none" : ""
+          )}
+        >
           {isEditMode ? draftBoxes.map((box) => renderDraftCard(box)) : systemState.map((system) => renderSystemCard(system, true))}
         </div>
       </div>

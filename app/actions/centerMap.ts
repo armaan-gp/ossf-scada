@@ -117,45 +117,43 @@ export async function saveCenterMapLayout(
       nameSet.add(normalizedName);
     }
 
-    await db.transaction(async (tx) => {
-      const existingRows = await tx.select({ id: centerMapBoxesTable.id }).from(centerMapBoxesTable);
-      const existingIds = new Set(existingRows.map((row) => row.id));
-      const incomingIds = new Set(normalized.filter((box) => typeof box.id === "number").map((box) => box.id as number));
+    const existingRows = await db.select({ id: centerMapBoxesTable.id }).from(centerMapBoxesTable);
+    const existingIds = new Set(existingRows.map((row) => row.id));
+    const incomingIds = new Set(normalized.filter((box) => typeof box.id === "number").map((box) => box.id as number));
 
-      for (const incomingId of incomingIds) {
-        if (!existingIds.has(incomingId)) {
-          throw new Error(`Location ${incomingId} no longer exists.`);
-        }
+    for (const incomingId of incomingIds) {
+      if (!existingIds.has(incomingId)) {
+        throw new Error(`Location ${incomingId} no longer exists.`);
       }
+    }
 
-      const idsToDelete = existingRows
-        .map((row) => row.id)
-        .filter((id) => !incomingIds.has(id));
+    const idsToDelete = existingRows
+      .map((row) => row.id)
+      .filter((id) => !incomingIds.has(id));
 
-      if (idsToDelete.length > 0) {
-        await tx.delete(centerMapAssignmentsTable).where(inArray(centerMapAssignmentsTable.boxId, idsToDelete));
-        await tx.delete(centerMapBoxesTable).where(inArray(centerMapBoxesTable.id, idsToDelete));
+    if (idsToDelete.length > 0) {
+      await db.delete(centerMapAssignmentsTable).where(inArray(centerMapAssignmentsTable.boxId, idsToDelete));
+      await db.delete(centerMapBoxesTable).where(inArray(centerMapBoxesTable.id, idsToDelete));
+    }
+
+    for (const box of normalized) {
+      const row = {
+        name: box.name,
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+        rotate: box.rotate,
+        sortOrder: box.sortOrder,
+        updatedAt: new Date(),
+      };
+
+      if (box.id) {
+        await db.update(centerMapBoxesTable).set(row).where(eq(centerMapBoxesTable.id, box.id));
+      } else {
+        await db.insert(centerMapBoxesTable).values(row);
       }
-
-      for (const box of normalized) {
-        const row = {
-          name: box.name,
-          left: box.left,
-          top: box.top,
-          width: box.width,
-          height: box.height,
-          rotate: box.rotate,
-          sortOrder: box.sortOrder,
-          updatedAt: new Date(),
-        };
-
-        if (box.id) {
-          await tx.update(centerMapBoxesTable).set(row).where(eq(centerMapBoxesTable.id, box.id));
-        } else {
-          await tx.insert(centerMapBoxesTable).values(row);
-        }
-      }
-    });
+    }
 
     revalidatePath("/app/center-map");
     return { ok: true };
