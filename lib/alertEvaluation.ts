@@ -41,7 +41,7 @@ export async function evaluateThingAlerts(
 
     const threshold = await getPropertyThreshold(thingId, prop.id);
     const inAlert = isPropertyInAlert(
-      { type: prop.type, last_value: prop.last_value },
+      { type, last_value: prop.last_value },
       threshold ?? undefined
     );
 
