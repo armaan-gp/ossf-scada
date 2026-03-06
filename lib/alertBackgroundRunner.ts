@@ -8,22 +8,22 @@ export async function runAlertProcessing(): Promise<{
   checkedProperties: number;
   activeAlerts: number;
   newEvents: number;
-  smsSent: number;
-  smsFailed: number;
+  emailsSent: number;
+  emailsFailed: number;
 }> {
   const devices = await getDevices();
   let checkedDevices = 0;
   let checkedProperties = 0;
   let activeAlerts = 0;
   let newEvents = 0;
-  let smsSent = 0;
-  let smsFailed = 0;
+  let emailsSent = 0;
+  let emailsFailed = 0;
 
   for (const device of devices) {
     if (device.device_status !== "ONLINE") continue;
     const thingId = device.thing?.id ?? device.id;
     const result = await evaluateThingAlerts(thingId, device.name ?? device.id, {
-      sendSmsForNewAlerts: true,
+      sendEmailsForNewAlerts: true,
       trackAlertEvents: true,
     });
 
@@ -31,8 +31,8 @@ export async function runAlertProcessing(): Promise<{
     checkedProperties += result.alerts.length;
     activeAlerts += result.alertCount;
     newEvents += result.newAlertEvents;
-    smsSent += result.smsSent;
-    smsFailed += result.smsFailed;
+    emailsSent += result.emailsSent;
+    emailsFailed += result.emailsFailed;
   }
 
   return {
@@ -40,7 +40,7 @@ export async function runAlertProcessing(): Promise<{
     checkedProperties,
     activeAlerts,
     newEvents,
-    smsSent,
-    smsFailed,
+    emailsSent,
+    emailsFailed,
   };
 }

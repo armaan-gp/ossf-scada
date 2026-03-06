@@ -11,26 +11,26 @@ export const usersTable = pgTable("users", {
 export type User = typeof usersTable.$inferSelect
 export type UserInsert = typeof usersTable.$inferInsert
 
-// SMS config (single row): sender email, encrypted app password, recipients as JSON array of { phoneNumber, carrier }
-export const smsConfigTable = pgTable("sms_config", {
+// Alert email config (single row): sender email, encrypted app password, recipients as JSON array of email strings.
+export const alertEmailConfigTable = pgTable("alert_email_config", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   senderEmail: varchar({ length: 255 }).notNull().default(""),
   appPasswordEncrypted: text().notNull().default(""),
-  recipient: varchar({ length: 255 }).notNull().default(""), // legacy; use recipientsJson
+  recipient: varchar({ length: 255 }).notNull().default(""), // legacy single recipient fallback
   recipientsJson: text().notNull().default("[]"),
   alertMessage: text().notNull().default("Alert: {deviceName} - {propertyName} is out of range (value: {value})."),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
-export type SmsConfig = typeof smsConfigTable.$inferSelect;
-export type SmsConfigInsert = typeof smsConfigTable.$inferInsert;
+export type AlertEmailConfig = typeof alertEmailConfigTable.$inferSelect;
+export type AlertEmailConfigInsert = typeof alertEmailConfigTable.$inferInsert;
 
-// Tracks which (thing, property) alerts have already triggered an SMS this episode
+// Tracks which (thing, property) alerts have already triggered an email this episode.
 export const alertNotificationsTable = pgTable("alert_notifications", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   thingId: varchar({ length: 255 }).notNull(),
   propertyId: varchar({ length: 255 }).notNull(),
-  smsSentAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  notifiedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AlertNotification = typeof alertNotificationsTable.$inferSelect;

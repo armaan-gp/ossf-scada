@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import {
-  smsConfigTable,
+  alertEmailConfigTable,
   alertNotificationsTable,
   propertyAlertThresholdsTable,
   propertyDisplayOverridesTable,
@@ -12,31 +12,30 @@ import { encrypt } from "@/lib/encrypt";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-export type SmsRecipientEntry = { phoneNumber: string; carrier: string };
-
-export type SmsConfigForm = {
+export type AlertEmailConfigForm = {
   senderEmail: string;
   appPassword: string;
-  recipients: SmsRecipientEntry[];
+  recipients: string[];
 };
 
-/** Get SMS config for the settings form. Password is never returned. Migrates legacy recipient into recipientsJson on first read. */
-export async function getSmsConfig(): Promise<SmsConfigForm | null> {
-  const row = await db.query.smsConfigTable.findFirst();
+/** Get alert email config for the settings form. Password is never returned. */
+export async function getAlertEmailConfig(): Promise<AlertEmailConfigForm | null> {
+  const row = await db.query.alertEmailConfigTable.findFirst();
   if (!row) return null;
 
-  let recipients: SmsRecipientEntry[] = [];
+  let recipients: string[] = [];
   try {
-    const parsed = JSON.parse(row.recipientsJson || "[]") as SmsRecipientEntry[];
-    if (Array.isArray(parsed)) recipients = parsed;
+    const parsed = JSON.parse(row.recipientsJson || "[]");
+    if (Array.isArray(parsed)) {
+      recipients = parsed
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
   } catch {
     // ignore
   }
-  if (recipients.length === 0 && row.recipient) {
-    const { parseLegacyRecipient } = await import("@/lib/smsGateways");
-    const one = parseLegacyRecipient(row.recipient);
-    if (one) recipients = [one];
-  }
+  if (recipients.length === 0 && row.recipient?.includes("@")) recipients = [row.recipient.trim()];
 
   return {
     senderEmail: row.senderEmail ?? "",
@@ -46,9 +45,9 @@ export async function getSmsConfig(): Promise<SmsConfigForm | null> {
 }
 
 /** Save only sender email and app password. */
-export async function saveSmsSenderConfig(senderEmail: string, appPassword: string): Promise<{ ok: boolean; error?: string }> {
+export async function saveAlertEmailSenderConfig(senderEmail: string, appPassword: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const existing = await db.query.smsConfigTable.findFirst();
+    const existing = await db.query.alertEmailConfigTable.findFirst();
     const encryptedPassword = appPassword ? encrypt(appPassword) : (existing?.appPasswordEncrypted ?? "");
 
     const updates = {
@@ -58,9 +57,9 @@ export async function saveSmsSenderConfig(senderEmail: string, appPassword: stri
     };
 
     if (existing) {
-      await db.update(smsConfigTable).set(updates).where(eq(smsConfigTable.id, existing.id));
+      await db.update(alertEmailConfigTable).set(updates).where(eq(alertEmailConfigTable.id, existing.id));
     } else {
-      await db.insert(smsConfigTable).values({
+      await db.insert(alertEmailConfigTable).values({
         senderEmail: updates.senderEmail,
         appPasswordEncrypted: updates.appPasswordEncrypted,
         recipientsJson: "[]",
@@ -74,16 +73,16 @@ export async function saveSmsSenderConfig(senderEmail: string, appPassword: stri
   }
 }
 
-/** Save only recipients list (phone + carrier). */
-export async function saveSmsRecipients(recipients: SmsRecipientEntry[]): Promise<{ ok: boolean; error?: string }> {
+/** Save only recipient email list. */
+export async function saveAlertEmailRecipients(recipients: string[]): Promise<{ ok: boolean; error?: string }> {
   try {
-    const existing = await db.query.smsConfigTable.findFirst();
+    const existing = await db.query.alertEmailConfigTable.findFirst();
     const recipientsJson = JSON.stringify(recipients);
 
     if (existing) {
-      await db.update(smsConfigTable).set({ recipientsJson, updatedAt: new Date() }).where(eq(smsConfigTable.id, existing.id));
+      await db.update(alertEmailConfigTable).set({ recipientsJson, updatedAt: new Date() }).where(eq(alertEmailConfigTable.id, existing.id));
     } else {
-      await db.insert(smsConfigTable).values({
+      await db.insert(alertEmailConfigTable).values({
         senderEmail: "",
         appPasswordEncrypted: "",
         recipientsJson,
@@ -97,8 +96,8 @@ export async function saveSmsRecipients(recipients: SmsRecipientEntry[]): Promis
   }
 }
 
-/** Check if we already sent SMS for this (thingId, propertyId) in this alert episode. */
-export async function hasSentAlertSms(thingId: string, propertyId: string): Promise<boolean> {
+/** Check if we already sent alert email for this (thingId, propertyId) in this alert episode. */
+export async function hasSentAlertEmail(thingId: string, propertyId: string): Promise<boolean> {
   const row = await db.query.alertNotificationsTable.findFirst({
     where: and(
       eq(alertNotificationsTable.thingId, thingId),
@@ -108,16 +107,16 @@ export async function hasSentAlertSms(thingId: string, propertyId: string): Prom
   return !!row;
 }
 
-/** Record that we sent an SMS for this (thingId, propertyId). */
-export async function recordAlertSmsSent(thingId: string, propertyId: string): Promise<void> {
+/** Record that we sent an alert email for this (thingId, propertyId). */
+export async function recordAlertEmailSent(thingId: string, propertyId: string): Promise<void> {
   await db.insert(alertNotificationsTable).values({
     thingId,
     propertyId,
   });
 }
 
-/** Remove record when property is back in range (so next out-of-range will trigger SMS again). */
-export async function clearAlertSmsRecord(thingId: string, propertyId: string): Promise<void> {
+/** Remove record when property is back in range (so next out-of-range will trigger email again). */
+export async function clearAlertEmailRecord(thingId: string, propertyId: string): Promise<void> {
   await db.delete(alertNotificationsTable).where(
     and(
       eq(alertNotificationsTable.thingId, thingId),

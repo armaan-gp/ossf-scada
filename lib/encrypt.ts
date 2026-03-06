@@ -5,7 +5,7 @@ const IV_LENGTH = 16;
 const KEY_LENGTH = 32;
 
 function getKey(): Buffer {
-  const raw = process.env.SMS_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || "ossf-scada-default-key-change-in-production";
+  const raw = process.env.ALERT_EMAIL_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || "ossf-scada-default-key-change-in-production";
   return createHash("sha256").update(raw, "utf8").digest().subarray(0, KEY_LENGTH);
 }
 

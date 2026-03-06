@@ -1,16 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
-import { GmailAccountForm, SmsRecipientsForm } from "@/components/function/SmsConfigForm"
+import { GmailAccountForm, EmailRecipientsForm } from "@/components/function/EmailAlertConfigForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
-import { getDecimalPlacesMap, getGlobalDecimalPlaces, getSmsConfig, getThresholdsMap } from "@/app/actions/settings"
+import { getAlertEmailConfig, getDecimalPlacesMap, getGlobalDecimalPlaces, getThresholdsMap } from "@/app/actions/settings"
 import { getAllRecordingConfigsMap } from "@/app/actions/recordings"
 import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
 import { PropertyRecordingEditor } from "@/components/function/PropertyRecordingEditor"
 import { PropertyValueDisplayEditor } from "@/components/function/PropertyValueDisplayEditor"
 
 export default async function SettingsPage() {
-  const [smsConfig, plcs, thresholdsMap, recordingConfigsMap, globalDecimalPlaces, propertyDecimalsMap] = await Promise.all([
-    getSmsConfig(),
+  const [alertEmailConfig, plcs, thresholdsMap, recordingConfigsMap, globalDecimalPlaces, propertyDecimalsMap] = await Promise.all([
+    getAlertEmailConfig(),
     getPlcsWithProperties().catch(() => []),
     getThresholdsMap(),
     getAllRecordingConfigsMap(),
@@ -28,29 +28,29 @@ export default async function SettingsPage() {
       </div>
 
       <h1 className="text-3xl font-bold text-[#500000] mb-1">Settings</h1>
-      <p className="text-gray-500 mb-6">Configure SMS alerts and system options</p>
+      <p className="text-gray-500 mb-6">Configure alert emails and system options</p>
 
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Gmail account</CardTitle>
           <CardDescription>
-            Sender email and App Password used to send SMS alerts. Update these separately from recipients.
+            Sender email and App Password used to send alert emails.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <GmailAccountForm initialConfig={smsConfig} />
+          <GmailAccountForm initialConfig={alertEmailConfig} />
         </CardContent>
       </Card>
 
       <Card className="max-w-2xl mt-6">
         <CardHeader>
-          <CardTitle>SMS recipients</CardTitle>
+          <CardTitle>Email recipients</CardTitle>
           <CardDescription>
-            Phone numbers and carriers that will receive alert SMS messages. Add multiple recipients if needed.
+            Email addresses that receive alert notifications.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SmsRecipientsForm initialRecipients={smsConfig?.recipients ?? []} />
+          <EmailRecipientsForm initialRecipients={alertEmailConfig?.recipients ?? []} />
         </CardContent>
       </Card>
 
@@ -60,7 +60,7 @@ export default async function SettingsPage() {
           <CardDescription>
             Optional min/max for INT and FLOAT properties. Leave blank to disable alerts for that threshold.
             If only min is set, alerts trigger when value falls below min. If only max is set, alerts trigger when value exceeds max.
-            Values outside range trigger alerts and SMS.
+            Values outside range trigger alerts and email notifications.
           </CardDescription>
         </CardHeader>
         <CardContent>

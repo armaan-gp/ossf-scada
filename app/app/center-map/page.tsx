@@ -61,7 +61,7 @@ export default async function CenterMapPage() {
       try {
         const thing = await getThingCached(assignedDevice.thingId);
         const result = await evaluateThingAlerts(assignedDevice.thingId, assignedDevice.name, {
-          sendSmsForNewAlerts: false,
+          sendEmailsForNewAlerts: false,
         });
         const alertIds = new Set(result.alerts.filter((a) => a.inAlert).map((a) => a.propertyId));
         properties = (thing.properties ?? []).map((prop) => ({

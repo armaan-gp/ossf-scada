@@ -1,9 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { db } from "@/db";
-import { smsConfigTable } from "@/db/schema";
 import { decrypt } from "./encrypt";
-import { toGatewayEmail, parseLegacyRecipient } from "./smsGateways";
 
 export interface SendAlertOptions {
   deviceName?: string;
@@ -21,29 +19,31 @@ function formatMessage(template: string, opts: SendAlertOptions): string {
 }
 
 /**
- * Load SMS config from DB. Returns null if sender/password or recipients not configured.
+ * Load alert email config from DB. Returns null if sender/password/recipients are not configured.
  */
-export async function getSmsConfigForSend() {
-  const row = await db.query.smsConfigTable.findFirst();
+export async function getAlertEmailConfigForSend() {
+  const row = await db.query.alertEmailConfigTable.findFirst();
   if (!row || !row.senderEmail || !row.appPasswordEncrypted) return null;
+
   const appPassword = decrypt(row.appPasswordEncrypted);
   if (!appPassword) return null;
 
-  let recipients: { phoneNumber: string; carrier: string }[] = [];
+  let recipientEmails: string[] = [];
   try {
     const parsed = JSON.parse(row.recipientsJson || "[]");
-    if (Array.isArray(parsed)) recipients = parsed;
+    if (Array.isArray(parsed)) {
+      recipientEmails = parsed
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
   } catch {
     // ignore
   }
-  if (recipients.length === 0 && row.recipient) {
-    const one = parseLegacyRecipient(row.recipient);
-    if (one) recipients = [one];
-  }
 
-  const recipientEmails = recipients
-    .map((r) => toGatewayEmail(r.phoneNumber, r.carrier))
-    .filter(Boolean);
+  if (recipientEmails.length === 0 && row.recipient?.includes("@")) {
+    recipientEmails = [row.recipient.trim()];
+  }
   if (recipientEmails.length === 0) return null;
 
   return {
@@ -54,12 +54,14 @@ export async function getSmsConfigForSend() {
 }
 
 /**
- * Send SMS via Gmail SMTP to all configured recipients.
- * Uses hardcoded message. Only call from server.
+ * Send alert email via Gmail SMTP to all configured recipients.
+ * Only call from server.
  */
-export async function sendAlertSms(messageOverride?: string, opts: SendAlertOptions = {}): Promise<{ success: boolean; error?: string }> {
-  const config = await getSmsConfigForSend();
-  if (!config) return { success: false, error: "SMS not configured. Set sender, app password, and at least one recipient in Settings." };
+export async function sendAlertEmail(messageOverride?: string, opts: SendAlertOptions = {}): Promise<{ success: boolean; error?: string }> {
+  const config = await getAlertEmailConfigForSend();
+  if (!config) {
+    return { success: false, error: "Email alerts are not configured. Set sender email, app password, and at least one recipient in Settings." };
+  }
 
   const body = messageOverride ?? formatMessage(HARDCODED_ALERT_MESSAGE, opts);
 
@@ -73,12 +75,14 @@ export async function sendAlertSms(messageOverride?: string, opts: SendAlertOpti
         pass: config.appPassword,
       },
     });
+
     await transporter.sendMail({
       from: config.senderEmail,
       to: config.recipientEmails,
       subject: "Website Alert",
       text: body,
     });
+
     return { success: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { saveSmsSenderConfig, saveSmsRecipients } from "@/app/actions/settings";
-import type { SmsConfigForm as SmsConfigFormType, SmsRecipientEntry } from "@/app/actions/settings";
-import { CARRIER_OPTIONS } from "@/lib/smsGateways";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { saveAlertEmailSenderConfig, saveAlertEmailRecipients } from "@/app/actions/settings";
+import type { AlertEmailConfigForm as AlertEmailConfigFormType } from "@/app/actions/settings";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function GmailAccountForm({ initialConfig }: { initialConfig: SmsConfigFormType | null }) {
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+export function GmailAccountForm({ initialConfig }: { initialConfig: AlertEmailConfigFormType | null }) {
   const [senderEmail, setSenderEmail] = useState(initialConfig?.senderEmail ?? "");
   const [appPassword, setAppPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -21,10 +23,10 @@ export function GmailAccountForm({ initialConfig }: { initialConfig: SmsConfigFo
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
-    const result = await saveSmsSenderConfig(senderEmail, appPassword);
+    const result = await saveAlertEmailSenderConfig(senderEmail.trim(), appPassword);
     setPending(false);
     if (result.ok) {
-      toast({ title: "Saved", description: "Gmail account settings saved." });
+      toast({ title: "Saved", description: "Email sender settings saved." });
       setAppPassword("");
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
@@ -56,45 +58,42 @@ export function GmailAccountForm({ initialConfig }: { initialConfig: SmsConfigFo
           autoComplete="off"
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Create an App Password in Google Account → Security → 2-Step Verification → App passwords.
+          Create an App Password in Google Account Security under 2-Step Verification, then App passwords.
         </p>
       </div>
       <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Save Gmail account"}
+        {pending ? "Saving..." : "Save sender settings"}
       </Button>
     </form>
   );
 }
 
-export function SmsRecipientsForm({ initialRecipients }: { initialRecipients: SmsRecipientEntry[] }) {
-  const [phoneInput, setPhoneInput] = useState("");
-  const [carrierInput, setCarrierInput] = useState("T-Mobile");
+export function EmailRecipientsForm({ initialRecipients }: { initialRecipients: string[] }) {
+  const [emailInput, setEmailInput] = useState("");
   const [pending, setPending] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
-  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-    setPhoneInput(digits);
-    setValidationError(null);
-  }
-
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    const digits = phoneInput.replace(/\D/g, "");
-    if (digits.length !== 10) {
-      setValidationError("Enter a 10-digit phone number.");
+    const email = emailInput.trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      setValidationError("Enter a valid email address.");
       return;
     }
+    if (initialRecipients.some((r) => r.toLowerCase() === email)) {
+      setValidationError("That recipient already exists.");
+      return;
+    }
+
     setPending(true);
     setValidationError(null);
-    const newList = [...initialRecipients, { phoneNumber: digits, carrier: carrierInput }];
-    const result = await saveSmsRecipients(newList);
+    const newList = [...initialRecipients, email];
+    const result = await saveAlertEmailRecipients(newList);
     setPending(false);
     if (result.ok) {
-      setPhoneInput("");
-      setCarrierInput("T-Mobile");
+      setEmailInput("");
       toast({ title: "Added", description: "Recipient added." });
       router.refresh();
     } else {
@@ -105,7 +104,7 @@ export function SmsRecipientsForm({ initialRecipients }: { initialRecipients: Sm
   async function handleDelete(index: number) {
     setPending(true);
     const newList = initialRecipients.filter((_, i) => i !== index);
-    const result = await saveSmsRecipients(newList);
+    const result = await saveAlertEmailRecipients(newList);
     setPending(false);
     if (result.ok) {
       toast({ title: "Removed", description: "Recipient removed." });
@@ -120,32 +119,19 @@ export function SmsRecipientsForm({ initialRecipients }: { initialRecipients: Sm
       <form onSubmit={handleAdd} className="space-y-4">
         <div className="text-sm font-medium">Add recipient</div>
         <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[140px]">
-            <Label className="text-xs">Phone number (10 digits)</Label>
+          <div className="min-w-[240px]">
+            <Label className="text-xs">Recipient email</Label>
             <Input
-              type="tel"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={phoneInput}
-              onChange={handlePhoneChange}
-              placeholder="5550000000"
+              type="email"
+              value={emailInput}
+              onChange={(e) => {
+                setEmailInput(e.target.value);
+                setValidationError(null);
+              }}
+              placeholder="alerts@example.com"
               className="mt-1"
-              maxLength={10}
             />
             {validationError && <p className="text-xs text-destructive mt-1">{validationError}</p>}
-          </div>
-          <div className="w-[180px]">
-            <Label className="text-xs">Carrier</Label>
-            <Select value={carrierInput} onValueChange={setCarrierInput}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CARRIER_OPTIONS.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <Button type="submit" disabled={pending}>
             Add recipient
@@ -159,9 +145,9 @@ export function SmsRecipientsForm({ initialRecipients }: { initialRecipients: Sm
           <p className="text-sm text-muted-foreground">No recipients. Add one above.</p>
         ) : (
           <div className="space-y-2">
-            {initialRecipients.map((r, index) => (
-              <div key={`${r.phoneNumber}-${r.carrier}-${index}`} className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm">{r.phoneNumber} ({r.carrier})</span>
+            {initialRecipients.map((recipient, index) => (
+              <div key={`${recipient}-${index}`} className="flex items-center justify-between rounded-lg border p-3">
+                <span className="text-sm">{recipient}</span>
                 <Button
                   type="button"
                   variant="ghost"
