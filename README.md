@@ -45,19 +45,24 @@ Set these in `.env`:
 | `ENCRYPTION_KEY` | Optional fallback | Fallback key if `ALERT_EMAIL_ENCRYPTION_KEY` is not set |
 
 ## Setup and Run
-1. Install dependencies:
+1. Create your local environment file:
+```bash
+cp .env.example .env
+```
+2. Fill in `.env` with real values.
+3. Install dependencies:
 ```bash
 npm install
 ```
-2. Apply schema to the database:
+4. Apply schema to the database:
 ```bash
 npm run push
 ```
-3. Start development server:
+5. Start development server:
 ```bash
 npm run dev
 ```
-4. Open:
+6. Open:
 - `http://localhost:3000/login`
 
 ## Build and Lint
