@@ -112,7 +112,7 @@ The authenticated app shell (`/app/*`) includes:
 - Logout button in the sidebar footer.
 
 Primary pages:
-- `/` (redirects to `/login`)
+- `/` (redirects to `/login` when not signed in)
 - `/login`
 - `/app` (Dashboard)
 - `/app/device/[id]`
@@ -152,16 +152,16 @@ Primary pages:
 - `Active PLC Devices`
   - Shows online PLC count and total detected devices.
 - `System Status`
-  - `Operational`, `Degraded`, or `Critical` based on offline ratio.
+  - `Operational`, `Degraded`, or `Critical` based on the ratio of offline PLCs to online PLCs.
 - `Active Alerts`
-  - Total currently out-of-range properties.
+  - Current number of properties causing an alert.
 
 ### Alert History CSV section
 - Card: `Alert History CSV`
 - `Preview CSV` button:
-  - Opens modal table with recent alert-event rows.
+  - Opens modal table with recent alert-event rows. Time displayed in `Date/Time` uses the timezone of the user.
 - `Download CSV` button:
-  - Downloads full alert history CSV.
+  - Downloads full alert history CSV. Time displayed in `datetime` uses the GMT timezone.
 
 ### Active Systems table
 Columns:
@@ -219,8 +219,8 @@ CSV Recording subsection:
 - Shows whether recording is enabled for this property.
 - If enabled:
   - interval + max rows shown
-  - `Preview CSV` opens modal row preview
-  - `Download CSV` downloads property CSV
+  - `Preview CSV` opens modal row preview. Time displayed in `Date/Time` uses the timezone of the user.
+  - `Download CSV` downloads property CSV. Time displayed in `datetime` uses the GMT timezone.
 - If disabled:
   - helper message points admin to Settings
 
