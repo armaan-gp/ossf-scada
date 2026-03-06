@@ -618,34 +618,37 @@ export function CenterMapView({
         }}
         className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden select-none"
       >
-        <div className="flex h-full min-w-0 flex-col gap-2">
-          <div className="flex items-center gap-1" data-no-drag="true">
-            <p className="flex-1 min-w-0 text-sm font-semibold text-slate-900 truncate">
+        <div className="flex h-full min-w-0 flex-col">
+          <div className="px-2 pt-1">
+            <p className="text-sm leading-snug font-semibold text-center text-slate-900 break-words line-clamp-3">
               {box.label}
             </p>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center justify-center gap-2 pb-2" data-no-drag="true">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="h-8 w-8 text-muted-foreground shrink-0"
+              className="h-9 w-9 text-muted-foreground shrink-0"
               onClick={() => openRenameDialog(box)}
               data-no-drag="true"
               aria-label="Rename location"
             >
-              <PencilLine className="h-4 w-4" />
+              <PencilLine className="h-5 w-5" />
             </Button>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="h-8 w-8 text-muted-foreground shrink-0"
+              className="h-9 w-9 text-muted-foreground shrink-0"
               onClick={() => handleDeleteDraftBox(box.id)}
               data-no-drag="true"
+              aria-label="Delete location"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" />
             </Button>
           </div>
-          <div className="flex-1" />
           <p className="text-[11px] text-center text-slate-500">Drag to reposition</p>
         </div>
       </div>
