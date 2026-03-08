@@ -3,18 +3,27 @@ import { getDecimalPlacesMap, getGlobalDecimalPlaces } from "@/app/actions/setti
 import { CenterMapView, type CenterMapSystemView } from "@/components/function/CenterMapView";
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
 import { getUser } from "@/lib/actions/auth";
-import { getDevices, getThing } from "@/lib/arduinoInit";
+import { getDevices, getThing, isArduinoUnauthorizedError } from "@/lib/arduinoInit";
 import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export default async function CenterMapPage() {
-  const [devices, boxes, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap, user] = await Promise.all([
-    getDevices(),
+  const [boxes, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap, user] = await Promise.all([
     getCenterMapBoxes(),
     getCenterMapAssignments(),
     getGlobalDecimalPlaces(),
     getDecimalPlacesMap(),
     getUser(),
   ]);
+  let devices: Awaited<ReturnType<typeof getDevices>> = [];
+  let dataSourceError: string | null = null;
+  try {
+    devices = await getDevices();
+  } catch (error) {
+    dataSourceError = isArduinoUnauthorizedError(error)
+      ? "Live Arduino data is temporarily unavailable because API authorization failed."
+      : "Live Arduino data is temporarily unavailable.";
+    console.error("[center-map] failed to load devices:", error);
+  }
 
   const normalizeLastActivityAt = (value: unknown): string | null => {
     if (!value) return null;
@@ -110,6 +119,11 @@ export default async function CenterMapPage() {
             Assign PLCs to map locations and monitor alert status at a glance
           </p>
         </div>
+        {dataSourceError ? (
+          <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {dataSourceError}
+          </div>
+        ) : null}
         <CenterMapView
           systems={systems}
           devices={devicesForSelect}
