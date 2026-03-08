@@ -4,13 +4,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCap
 import { Button } from "@/components/ui/button"
 import { ExternalLink, AlertTriangle, CheckCircle, CircuitBoard, Activity } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getDevices } from "@/lib/arduinoInit"
+import { getDevices, isArduinoUnauthorizedError } from "@/lib/arduinoInit"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
 import React from "react"
 import { AlertEventsCsvCard } from "@/components/function/AlertEventsCsvCard"
 
 export default async function Page() {
-    const devices = await getDevices();
+    let devices: Awaited<ReturnType<typeof getDevices>> = [];
+    let dataSourceError: string | null = null;
+    try {
+        devices = await getDevices();
+    } catch (error) {
+        dataSourceError = isArduinoUnauthorizedError(error)
+            ? "Live Arduino data is temporarily unavailable because API authorization failed."
+            : "Live Arduino data is temporarily unavailable.";
+        console.error("[dashboard] failed to load devices:", error);
+    }
 
     const activePlcs = devices.filter((d) => d.device_status === "ONLINE").length;
 
@@ -39,6 +48,11 @@ export default async function Page() {
                     <p className="text-4xl text-tama font-serif">Dashboard</p>
                     <p className="text-sm font-semibold text-muted-foreground">Welcome to the TAMU OSSF Center SCADA System</p>
                 </div>
+                {dataSourceError ? (
+                    <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        {dataSourceError}
+                    </div>
+                ) : null}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-8">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

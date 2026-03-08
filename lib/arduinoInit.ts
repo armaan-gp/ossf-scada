@@ -49,6 +49,24 @@ interface Thing {
   webhook_active?: boolean;
 }
 
+export class ArduinoApiRequestError extends Error {
+  status: number;
+  statusText: string;
+  responseBody: string;
+
+  constructor(message: string, status: number, statusText: string, responseBody: string) {
+    super(message);
+    this.name = "ArduinoApiRequestError";
+    this.status = status;
+    this.statusText = statusText;
+    this.responseBody = responseBody;
+  }
+}
+
+export function isArduinoUnauthorizedError(error: unknown): error is ArduinoApiRequestError {
+  return error instanceof ArduinoApiRequestError && error.status === 401;
+}
+
 // Function to obtain a fresh access token
 async function getToken(): Promise<string> {
   const body = new URLSearchParams({
@@ -65,7 +83,13 @@ async function getToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to obtain access token: ${response.statusText}`);
+    const responseBody = await response.text().catch(() => "");
+    throw new ArduinoApiRequestError(
+      `Failed to obtain access token: ${response.statusText}`,
+      response.status,
+      response.statusText,
+      responseBody
+    );
   }
 
   const data: AccessTokenResponse = await response.json();

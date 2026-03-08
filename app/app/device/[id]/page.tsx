@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getDevice, getThing } from "@/lib/arduinoInit"
+import { getDevice, getThing, isArduinoUnauthorizedError } from "@/lib/arduinoInit"
 import { DeviceProperties } from "@/components/function/DeviceProperties"
 import { evaluateThingAlerts } from "@/lib/alertEvaluation"
 import { FormattedDateTime } from "@/components/FormattedDateTime"
@@ -17,9 +17,18 @@ export default async function SystemDetailPage({
     params: Promise<{ id: string }>
 }) {
     const { id } = await params;
-    const deviceData = await getDevice(id);
+    let deviceData: Awaited<ReturnType<typeof getDevice>> | null = null;
+    let loadError: string | null = null;
+    try {
+        deviceData = await getDevice(id);
+    } catch (error) {
+        loadError = isArduinoUnauthorizedError(error)
+            ? "Live Arduino data is temporarily unavailable because API authorization failed."
+            : "Unable to load live device data right now.";
+        console.error(`[device] failed to load ${id}:`, error);
+    }
 
-    if (!deviceData) {
+    if (!deviceData || loadError) {
         return (
             <div className="container mx-auto p-6">
                 <div className="flex items-center mb-6">
@@ -29,7 +38,7 @@ export default async function SystemDetailPage({
                             Back to Dashboard
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold text-red-600">Device not found</h1>
+                    <h1 className="text-2xl font-bold text-red-600">{loadError ?? "Device not found"}</h1>
                 </div>
             </div>
         );
