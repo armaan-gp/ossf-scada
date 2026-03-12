@@ -12,9 +12,9 @@ export function RecentUserActivity({ events }: RecentUserActivityProps) {
   }
 
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3">
       {visibleEvents.map((event) => (
-        <div key={event.id} className="border rounded-md p-3 w-full max-w-2xl">
+        <div key={event.id} className="border rounded-md p-3 w-full">
           <p className="text-sm font-medium">{event.action}</p>
           <p className="text-xs text-gray-600 mt-1">
             Source: {event.source} | Actor ID: {event.actorUserId ?? "system"} | Target ID: {event.targetUserId ?? "-"}
