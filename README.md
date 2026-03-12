@@ -411,6 +411,7 @@ Validation:
 - Ensure cron scheduler calls both run endpoints for continuous background processing.
 - Keep `CRON_SECRET` configured in production and send it as Bearer token.
 - After schema changes, run `npm run push` before deployment.
+- If updating from older center-map schema, run the rename migration in `drizzle/0002_rename_center_map_boxes_to_locations.sql`.
 
 ## Quick Troubleshooting
 - Alert emails not sending:

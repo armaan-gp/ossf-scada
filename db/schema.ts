@@ -145,7 +145,7 @@ export type PropertyDisplayOverride = typeof propertyDisplayOverridesTable.$infe
 export type PropertyDisplayOverrideInsert = typeof propertyDisplayOverridesTable.$inferInsert;
 
 // User-defined center map locations/layout.
-export const centerMapLocationsTable = pgTable("center_map_boxes", {
+export const centerMapLocationsTable = pgTable("center_map_locations", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 255 }).notNull(),
   left: real().notNull(),
@@ -162,7 +162,7 @@ export type CenterMapLocationInsert = typeof centerMapLocationsTable.$inferInser
 
 // Global assignment of center map locations to PLC device IDs.
 export const centerMapAssignmentsTable = pgTable("center_map_assignments", {
-  locationId: integer("box_id").primaryKey().references(() => centerMapLocationsTable.id, { onDelete: "cascade" }),
+  locationId: integer().primaryKey().references(() => centerMapLocationsTable.id, { onDelete: "cascade" }),
   deviceId: varchar({ length: 255 }),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
