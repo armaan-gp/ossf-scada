@@ -32,6 +32,7 @@ function formatDateTime(value: Date | string | null) {
 export function UserTable({ users, currentUserId }: UserTableProps) {
   const { toast } = useToast()
   const [userRows, setUserRows] = useState<UserListItem[]>(users)
+  const [optimisticallyDeletedUserIds, setOptimisticallyDeletedUserIds] = useState<Set<number>>(new Set())
 
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null)
   const [editName, setEditName] = useState("")
@@ -41,8 +42,8 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
-    setUserRows(users)
-  }, [users])
+    setUserRows(users.filter((user) => !optimisticallyDeletedUserIds.has(user.id)))
+  }, [users, optimisticallyDeletedUserIds])
 
   function openEdit(user: UserListItem) {
     setEditingUser(user)
@@ -99,6 +100,11 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       return
     }
 
+    setOptimisticallyDeletedUserIds((prev) => {
+      const next = new Set(prev)
+      next.add(user.id)
+      return next
+    })
     setUserRows((prev) => prev.filter((row) => row.id !== user.id))
     toast({ title: "Deleted", description: result.message })
   }
