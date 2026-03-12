@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +31,7 @@ function formatDateTime(value: Date | string | null) {
 }
 
 export function UserTable({ users, currentUserId }: UserTableProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [userRows, setUserRows] = useState<UserListItem[]>(users)
   const [optimisticallyDeletedUserIds, setOptimisticallyDeletedUserIds] = useState<Set<number>>(new Set())
@@ -94,19 +96,38 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
     )
     if (!confirmed) return
 
-    const result = await deleteUser({ id: user.id })
-    if (!result.ok) {
-      toast({ title: "Error", description: result.message, variant: "destructive" })
-      return
-    }
-
+    const previousRows = userRows
     setOptimisticallyDeletedUserIds((prev) => {
       const next = new Set(prev)
       next.add(user.id)
       return next
     })
     setUserRows((prev) => prev.filter((row) => row.id !== user.id))
-    toast({ title: "Deleted", description: result.message })
+
+    try {
+      const result = await deleteUser({ id: user.id })
+      if (!result.ok) {
+        setOptimisticallyDeletedUserIds((prev) => {
+          const next = new Set(prev)
+          next.delete(user.id)
+          return next
+        })
+        setUserRows(previousRows)
+        toast({ title: "Error", description: result.message, variant: "destructive" })
+        return
+      }
+
+      toast({ title: "Deleted", description: result.message })
+      router.refresh()
+    } catch {
+      setOptimisticallyDeletedUserIds((prev) => {
+        const next = new Set(prev)
+        next.delete(user.id)
+        return next
+      })
+      setUserRows(previousRows)
+      toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" })
+    }
   }
 
   return (
