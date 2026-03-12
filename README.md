@@ -38,6 +38,8 @@ Set these in `.env`:
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string used by app and Drizzle push |
 | `SESSION_SECRET` | Yes | Secret for session JWT signing/verification |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL used to generate invite links (for example, `https://scada.example.com`) |
+| `APP_URL` | Optional fallback | Server-side fallback base URL for invite links if `NEXT_PUBLIC_APP_URL` is not set |
 | `ARDUINO_API_CLIENT_ID` | Yes | Arduino IoT API OAuth client ID |
 | `ARDUINO_API_CLIENT_SECRET` | Yes | Arduino IoT API OAuth client secret |
 | `CRON_SECRET` | Recommended | Bearer token for `/api/alerts/run` and `/api/recordings/run` |

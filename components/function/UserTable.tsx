@@ -98,7 +98,6 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
               <th className="text-left py-3 px-2 font-medium text-gray-500">Email</th>
               <th className="text-left py-3 px-2 font-medium text-gray-500">Role</th>
               <th className="text-left py-3 px-2 font-medium text-gray-500">Status</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-500">Origin</th>
               <th className="text-left py-3 px-2 font-medium text-gray-500">Created</th>
               <th className="text-left py-3 px-2 font-medium text-gray-500">Last Login</th>
               <th className="text-right py-3 px-2 font-medium text-gray-500">Actions</th>
@@ -119,7 +118,6 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
                     {user.status}
                   </Badge>
                 </td>
-                <td className="py-3 px-2">{user.origin}</td>
                 <td className="py-3 px-2">{formatDateTime(user.createdAt)}</td>
                 <td className="py-3 px-2">{formatDateTime(user.lastLoginAt)}</td>
                 <td className="py-3 px-2 text-right whitespace-nowrap">

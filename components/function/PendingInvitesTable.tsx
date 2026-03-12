@@ -46,6 +46,8 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
     return <p className="text-sm text-gray-500">No pending invites.</p>
   }
 
+  const roleLabel = (role: "admin" | "user") => (role === "admin" ? "Admin" : "User")
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -66,7 +68,7 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
               <td className="py-3 px-2">{invite.email}</td>
               <td className="py-3 px-2">
                 <Badge variant="secondary" className={invite.role === "admin" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>
-                  {invite.role}
+                  {roleLabel(invite.role)}
                 </Badge>
               </td>
               <td className="py-3 px-2">{new Date(invite.createdAt).toLocaleString()}</td>

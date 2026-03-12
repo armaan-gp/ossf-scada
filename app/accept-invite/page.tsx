@@ -47,13 +47,15 @@ export default async function AcceptInvitePage({
     )
   }
 
+  const roleLabel = preview.role === "admin" ? "Admin" : "User"
+
   return (
     <div className="min-h-screen bg-secondary flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Activate your account</CardTitle>
           <CardDescription>
-            {preview.name} ({preview.email}) invited as {preview.role}.
+            {preview.name} ({preview.email}) invited as {roleLabel}.
           </CardDescription>
         </CardHeader>
         <CardContent>
