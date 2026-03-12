@@ -448,8 +448,6 @@ export async function regenerateInvite(inviteId: number): Promise<ActionResult<R
     metadata: { inviteId: replacement.id, regeneratedFrom: inviteId, email: current.email, role: current.role },
   })
 
-  revalidatePath("/app/user_management")
-
   return {
     ok: true,
     message: "Invite regenerated",

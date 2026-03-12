@@ -1,7 +1,6 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { regenerateInvite, revokeInvite, type PendingInviteItem } from "@/app/actions/admin"
@@ -18,8 +17,8 @@ type ClipboardResult = {
 }
 
 export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
-  const router = useRouter()
   const { toast } = useToast()
+  const [inviteRows, setInviteRows] = useState<PendingInviteItem[]>(invites)
   const [manualCopyByInviteId, setManualCopyByInviteId] = useState<Record<number, string>>({})
 
   async function copyToClipboardWithFallback(text: string): Promise<ClipboardResult> {
@@ -72,8 +71,13 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
       toast({ title: "Error", description: result.message, variant: "destructive" })
       return
     }
+    setInviteRows((prev) => prev.filter((invite) => invite.id !== id))
+    setManualCopyByInviteId((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
     toast({ title: "Invite revoked", description: result.message })
-    router.refresh()
   }
 
   async function handleRegenerate(id: number) {
@@ -86,23 +90,28 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
       return
     }
 
-    const copyResult = await copyToClipboardWithFallback(result.data.inviteLink)
-    if (copyResult.success) {
-      setManualCopyByInviteId((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-      toast({ title: "Invite regenerated", description: "Invite regenerated. Link copied to clipboard." })
-      router.refresh()
-      return
-    }
+    const regeneratedCreatedAt = new Date()
+    setInviteRows((prev) =>
+      prev.map((invite) =>
+        invite.id === id
+          ? {
+              ...invite,
+              id: result.data.inviteId,
+              createdAt: regeneratedCreatedAt,
+              expiresAt: new Date(result.data.expiresAt),
+            }
+          : invite
+      )
+    )
 
-    setManualCopyByInviteId((prev) => ({ ...prev, [id]: result.data.inviteLink }))
+    setManualCopyByInviteId((prev) => {
+      const next = { ...prev, [result.data.inviteId]: result.data.inviteLink }
+      delete next[id]
+      return next
+    })
     toast({
       title: "Invite regenerated",
-      description: "Invite regenerated, but auto-copy failed. Use manual copy below.",
-      variant: "destructive",
+      description: "Invite regenerated. Use Copy Link below.",
     })
   }
 
@@ -126,10 +135,9 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
       return next
     })
     toast({ title: "Copied", description: "Invite link copied to clipboard." })
-    router.refresh()
   }
 
-  if (invites.length === 0) {
+  if (inviteRows.length === 0) {
     return <p className="text-sm text-gray-500">No pending invites.</p>
   }
 
@@ -149,7 +157,7 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
           </tr>
         </thead>
         <tbody>
-          {invites.map((invite) => (
+          {inviteRows.map((invite) => (
             <Fragment key={invite.id}>
               <tr className="border-b hover:bg-gray-50">
                 <td className="py-3 px-2">{invite.name}</td>
@@ -179,7 +187,7 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
                 <tr className="border-b bg-amber-50/40">
                   <td colSpan={6} className="py-3 px-2">
                     <p className="text-xs text-gray-700 mb-2">
-                      Auto-copy was blocked by your browser. Use this button to copy the regenerated link.
+                      Link regenerated successfully. Use this button to copy the new link.
                     </p>
                     <p className="text-xs text-gray-600 break-all mb-2">{manualCopyByInviteId[invite.id]}</p>
                     <Button variant="outline" size="sm" onClick={() => handleManualCopy(invite.id)}>
