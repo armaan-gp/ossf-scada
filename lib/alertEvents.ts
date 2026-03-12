@@ -1,7 +1,12 @@
 import "server-only";
 
 import { db } from "@/db";
-import { activeAlertEpisodesTable, alertEventsTable } from "@/db/schema";
+import {
+  activeAlertEpisodesTable,
+  alertEventsTable,
+  propertyDisplayOverridesTable,
+  propertyDisplaySettingsTable,
+} from "@/db/schema";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 const MAX_ALERT_EVENT_ROWS = 10000;
@@ -27,6 +32,18 @@ function escapeCsvValue(raw: string): string {
     return `"${raw.replace(/"/g, '""')}"`;
   }
   return raw;
+}
+
+function isFloatType(type: string | null | undefined): boolean {
+  return (type ?? "").toUpperCase() === "FLOAT";
+}
+
+function formatCsvAlertValueForFloat(raw: string, decimalPlaces: number | null): string {
+  if (decimalPlaces === null) return raw;
+  if (raw.trim() === "") return raw;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return raw;
+  return parsed.toFixed(decimalPlaces);
 }
 
 async function trimAlertEventsToMax(maxRows: number): Promise<void> {
@@ -135,21 +152,37 @@ export async function getAlertEventRows(limit = 100): Promise<AlertEventView[]> 
 }
 
 export async function buildAlertEventsCsv(): Promise<string> {
-  const rows = await db
-    .select({
-      occurredAt: alertEventsTable.occurredAt,
-      thingId: alertEventsTable.thingId,
-      thingName: alertEventsTable.thingName,
-      propertyId: alertEventsTable.propertyId,
-      propertyName: alertEventsTable.propertyName,
-      propertyType: alertEventsTable.propertyType,
-      valueRaw: alertEventsTable.valueRaw,
-    })
-    .from(alertEventsTable)
-    .orderBy(asc(alertEventsTable.occurredAt), asc(alertEventsTable.id));
+  const [rows, overrideRows, globalRow] = await Promise.all([
+    db
+      .select({
+        occurredAt: alertEventsTable.occurredAt,
+        thingId: alertEventsTable.thingId,
+        thingName: alertEventsTable.thingName,
+        propertyId: alertEventsTable.propertyId,
+        propertyName: alertEventsTable.propertyName,
+        propertyType: alertEventsTable.propertyType,
+        valueRaw: alertEventsTable.valueRaw,
+      })
+      .from(alertEventsTable)
+      .orderBy(asc(alertEventsTable.occurredAt), asc(alertEventsTable.id)),
+    db.select().from(propertyDisplayOverridesTable),
+    db.query.propertyDisplaySettingsTable.findFirst(),
+  ]);
+
+  const globalDecimalPlaces = globalRow?.globalDecimalPlaces ?? null;
+  const perPropertyDecimalMap = new Map<string, number | null>();
+  for (const row of overrideRows) {
+    perPropertyDecimalMap.set(`${row.thingId}:${row.propertyId}`, row.decimalPlaces ?? null);
+  }
 
   const lines = ["datetime,plc_name,plc_id,property_name,property_id,property_type,value"];
   for (const row of rows) {
+    const decimalPlaces =
+      perPropertyDecimalMap.get(`${row.thingId}:${row.propertyId}`) ?? globalDecimalPlaces;
+    const value = isFloatType(row.propertyType)
+      ? formatCsvAlertValueForFloat(row.valueRaw, decimalPlaces)
+      : row.valueRaw;
+
     lines.push(
       [
         escapeCsvValue(row.occurredAt.toISOString()),
@@ -158,7 +191,7 @@ export async function buildAlertEventsCsv(): Promise<string> {
         escapeCsvValue(row.propertyName),
         escapeCsvValue(row.propertyId),
         escapeCsvValue(row.propertyType),
-        escapeCsvValue(row.valueRaw),
+        escapeCsvValue(value),
       ].join(",")
     );
   }

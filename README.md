@@ -234,16 +234,16 @@ CSV Recording subsection:
 ## 4) Center Map (`/app/center-map`)
 
 ### Purpose
-- Map-like view of location boxes and their PLC assignments.
+- Map-like view of locations and their PLC assignments.
 - Supports normal operation mode and admin layout edit mode.
 
 ### Normal mode (all authenticated users)
 Main canvas behavior:
-- Each box displays:
+- Each location displays:
   - location name
   - status icon (unassigned/unknown/alert/healthy)
   - assigned PLC label (or unassigned text)
-- Clicking a box opens location detail dialog.
+- Clicking a location opens location detail dialog.
 
 Location detail dialog sections:
 - Basic PLC details
@@ -270,14 +270,14 @@ Entry:
 - `Edit Layout` button (admins only).
 
 Edit mode controls:
-- `Add Box`
+- `Add Location`
 - `Save Layout`
 - `Cancel`
 
 Edit mode behavior:
-- Drag boxes freely on desktop/tablet.
+- Drag locations freely on desktop/tablet.
 - Text selection is disabled during drag for smoother movement.
-- Box content is simplified for layout editing:
+- Location content is simplified for layout editing:
   - Location name display
   - Rename button
   - Delete button
@@ -285,7 +285,7 @@ Edit mode behavior:
 - PLC assignment and status details are not shown in edit cards.
 
 Rename flow:
-1. Click rename icon on a box.
+1. Click rename icon on a location.
 2. Rename modal opens.
 3. Enter full location name.
 4. Click `Save Name`.

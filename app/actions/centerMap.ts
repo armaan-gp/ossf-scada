@@ -3,11 +3,11 @@
 import { getUser } from "@/lib/actions/auth";
 import { getDevices } from "@/lib/arduinoInit";
 import { db } from "@/db";
-import { centerMapAssignmentsTable, centerMapBoxesTable } from "@/db/schema";
+import { centerMapAssignmentsTable, centerMapLocationsTable } from "@/db/schema";
 import { asc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-export type CenterMapLayoutBoxInput = {
+export type CenterMapLayoutLocationInput = {
   id?: number;
   name: string;
   left: number;
@@ -18,7 +18,7 @@ export type CenterMapLayoutBoxInput = {
   sortOrder?: number;
 };
 
-type NormalizedLayoutBox = {
+type NormalizedLayoutLocation = {
   id?: number;
   name: string;
   left: number;
@@ -29,8 +29,8 @@ type NormalizedLayoutBox = {
   sortOrder: number;
 };
 
-const DEFAULT_BOX_WIDTH = 9;
-const DEFAULT_BOX_HEIGHT = 26;
+const DEFAULT_LOCATION_WIDTH = 9;
+const DEFAULT_LOCATION_HEIGHT = 26;
 
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -45,7 +45,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function normalizeLayoutBox(raw: CenterMapLayoutBoxInput, index: number): NormalizedLayoutBox {
+function normalizeLayoutLocation(raw: CenterMapLayoutLocationInput, index: number): NormalizedLayoutLocation {
   const id = typeof raw.id === "number" && Number.isInteger(raw.id) && raw.id > 0 ? raw.id : undefined;
   const name = String(raw.name ?? "").trim();
   if (!name) {
@@ -54,8 +54,8 @@ function normalizeLayoutBox(raw: CenterMapLayoutBoxInput, index: number): Normal
 
   const widthInput = toFiniteNumber(raw.width);
   const heightInput = toFiniteNumber(raw.height);
-  const width = clamp(widthInput ?? DEFAULT_BOX_WIDTH, 1, 100);
-  const height = clamp(heightInput ?? DEFAULT_BOX_HEIGHT, 1, 100);
+  const width = clamp(widthInput ?? DEFAULT_LOCATION_WIDTH, 1, 100);
+  const height = clamp(heightInput ?? DEFAULT_LOCATION_HEIGHT, 1, 100);
 
   const leftInput = toFiniteNumber(raw.left);
   const topInput = toFiniteNumber(raw.top);
@@ -77,24 +77,24 @@ function normalizeLayoutBox(raw: CenterMapLayoutBoxInput, index: number): Normal
   };
 }
 
-export async function getCenterMapBoxes() {
+export async function getCenterMapLocations() {
   return db
     .select()
-    .from(centerMapBoxesTable)
-    .orderBy(asc(centerMapBoxesTable.sortOrder), asc(centerMapBoxesTable.id));
+    .from(centerMapLocationsTable)
+    .orderBy(asc(centerMapLocationsTable.sortOrder), asc(centerMapLocationsTable.id));
 }
 
 export async function getCenterMapAssignments(): Promise<Record<number, string | null>> {
   const rows = await db.select().from(centerMapAssignmentsTable);
   const map: Record<number, string | null> = {};
   for (const row of rows) {
-    map[row.boxId] = row.deviceId ?? null;
+    map[row.locationId] = row.deviceId ?? null;
   }
   return map;
 }
 
 export async function saveCenterMapLayout(
-  boxes: CenterMapLayoutBoxInput[]
+  locations: CenterMapLayoutLocationInput[]
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const user = await getUser();
@@ -102,24 +102,24 @@ export async function saveCenterMapLayout(
       return { ok: false, error: "Only admins can edit the center map layout." };
     }
 
-    if (!Array.isArray(boxes)) {
+    if (!Array.isArray(locations)) {
       return { ok: false, error: "Invalid layout payload." };
     }
 
-    const normalized = boxes.map((box, index) => normalizeLayoutBox(box, index));
+    const normalized = locations.map((location, index) => normalizeLayoutLocation(location, index));
 
     const nameSet = new Set<string>();
-    for (const box of normalized) {
-      const normalizedName = box.name.toLowerCase();
+    for (const location of normalized) {
+      const normalizedName = location.name.toLowerCase();
       if (nameSet.has(normalizedName)) {
         return { ok: false, error: "Location names must be unique." };
       }
       nameSet.add(normalizedName);
     }
 
-    const existingRows = await db.select({ id: centerMapBoxesTable.id }).from(centerMapBoxesTable);
+    const existingRows = await db.select({ id: centerMapLocationsTable.id }).from(centerMapLocationsTable);
     const existingIds = new Set(existingRows.map((row) => row.id));
-    const incomingIds = new Set(normalized.filter((box) => typeof box.id === "number").map((box) => box.id as number));
+    const incomingIds = new Set(normalized.filter((location) => typeof location.id === "number").map((location) => location.id as number));
 
     for (const incomingId of incomingIds) {
       if (!existingIds.has(incomingId)) {
@@ -132,26 +132,26 @@ export async function saveCenterMapLayout(
       .filter((id) => !incomingIds.has(id));
 
     if (idsToDelete.length > 0) {
-      await db.delete(centerMapAssignmentsTable).where(inArray(centerMapAssignmentsTable.boxId, idsToDelete));
-      await db.delete(centerMapBoxesTable).where(inArray(centerMapBoxesTable.id, idsToDelete));
+      await db.delete(centerMapAssignmentsTable).where(inArray(centerMapAssignmentsTable.locationId, idsToDelete));
+      await db.delete(centerMapLocationsTable).where(inArray(centerMapLocationsTable.id, idsToDelete));
     }
 
-    for (const box of normalized) {
+    for (const location of normalized) {
       const row = {
-        name: box.name,
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        rotate: box.rotate,
-        sortOrder: box.sortOrder,
+        name: location.name,
+        left: location.left,
+        top: location.top,
+        width: location.width,
+        height: location.height,
+        rotate: location.rotate,
+        sortOrder: location.sortOrder,
         updatedAt: new Date(),
       };
 
-      if (box.id) {
-        await db.update(centerMapBoxesTable).set(row).where(eq(centerMapBoxesTable.id, box.id));
+      if (location.id) {
+        await db.update(centerMapLocationsTable).set(row).where(eq(centerMapLocationsTable.id, location.id));
       } else {
-        await db.insert(centerMapBoxesTable).values(row);
+        await db.insert(centerMapLocationsTable).values(row);
       }
     }
 
@@ -163,19 +163,19 @@ export async function saveCenterMapLayout(
 }
 
 export async function setCenterMapAssignment(
-  boxId: number,
+  locationId: number,
   deviceId: string | null
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const nextBoxId = Number(boxId);
-    if (!Number.isInteger(nextBoxId) || nextBoxId <= 0) {
+    const nextLocationId = Number(locationId);
+    if (!Number.isInteger(nextLocationId) || nextLocationId <= 0) {
       return { ok: false, error: "Invalid map location." };
     }
 
-    const box = await db.query.centerMapBoxesTable.findFirst({
-      where: eq(centerMapBoxesTable.id, nextBoxId),
+    const location = await db.query.centerMapLocationsTable.findFirst({
+      where: eq(centerMapLocationsTable.id, nextLocationId),
     });
-    if (!box) {
+    if (!location) {
       return { ok: false, error: "Selected map location no longer exists." };
     }
 
@@ -191,12 +191,12 @@ export async function setCenterMapAssignment(
     await db
       .insert(centerMapAssignmentsTable)
       .values({
-        boxId: nextBoxId,
+        locationId: nextLocationId,
         deviceId: nextDeviceId,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
-        target: centerMapAssignmentsTable.boxId,
+        target: centerMapAssignmentsTable.locationId,
         set: {
           deviceId: nextDeviceId,
           updatedAt: new Date(),

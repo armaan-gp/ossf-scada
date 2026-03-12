@@ -144,8 +144,8 @@ export const propertyDisplayOverridesTable = pgTable(
 export type PropertyDisplayOverride = typeof propertyDisplayOverridesTable.$inferSelect;
 export type PropertyDisplayOverrideInsert = typeof propertyDisplayOverridesTable.$inferInsert;
 
-// User-defined center map boxes/layout.
-export const centerMapBoxesTable = pgTable("center_map_boxes", {
+// User-defined center map locations/layout.
+export const centerMapLocationsTable = pgTable("center_map_boxes", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 255 }).notNull(),
   left: real().notNull(),
@@ -157,12 +157,12 @@ export const centerMapBoxesTable = pgTable("center_map_boxes", {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
-export type CenterMapBox = typeof centerMapBoxesTable.$inferSelect;
-export type CenterMapBoxInsert = typeof centerMapBoxesTable.$inferInsert;
+export type CenterMapLocation = typeof centerMapLocationsTable.$inferSelect;
+export type CenterMapLocationInsert = typeof centerMapLocationsTable.$inferInsert;
 
-// Global assignment of center map boxes to PLC device IDs.
+// Global assignment of center map locations to PLC device IDs.
 export const centerMapAssignmentsTable = pgTable("center_map_assignments", {
-  boxId: integer().primaryKey().references(() => centerMapBoxesTable.id, { onDelete: "cascade" }),
+  locationId: integer("box_id").primaryKey().references(() => centerMapLocationsTable.id, { onDelete: "cascade" }),
   deviceId: varchar({ length: 255 }),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

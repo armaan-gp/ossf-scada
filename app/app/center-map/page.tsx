@@ -1,4 +1,4 @@
-import { getCenterMapAssignments, getCenterMapBoxes } from "@/app/actions/centerMap";
+import { getCenterMapAssignments, getCenterMapLocations } from "@/app/actions/centerMap";
 import { getDecimalPlacesMap, getGlobalDecimalPlaces } from "@/app/actions/settings";
 import { CenterMapView, type CenterMapSystemView } from "@/components/function/CenterMapView";
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
@@ -7,8 +7,8 @@ import { getDevices, getThing, isArduinoUnauthorizedError } from "@/lib/arduinoI
 import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
 
 export default async function CenterMapPage() {
-  const [boxes, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap, user] = await Promise.all([
-    getCenterMapBoxes(),
+  const [locations, assignmentMap, globalDecimalPlaces, propertyDecimalPlacesMap, user] = await Promise.all([
+    getCenterMapLocations(),
     getCenterMapAssignments(),
     getGlobalDecimalPlaces(),
     getDecimalPlacesMap(),
@@ -63,8 +63,8 @@ export default async function CenterMapPage() {
   };
 
   const systems: CenterMapSystemView[] = [];
-  for (const box of boxes) {
-    const assignedDeviceId = assignmentMap[box.id] ?? null;
+  for (const location of locations) {
+    const assignedDeviceId = assignmentMap[location.id] ?? null;
     const assignedDevice = assignedDeviceId ? devicesById.get(assignedDeviceId) : undefined;
     let alertCount: number | null = null;
     let properties: Array<{ id: string; name: string; value: string; inAlert: boolean }> = [];
@@ -95,14 +95,14 @@ export default async function CenterMapPage() {
     }
 
     systems.push({
-      id: box.id,
-      label: box.name,
-      left: box.left,
-      top: box.top,
-      width: box.width,
-      height: box.height,
-      rotate: box.rotate,
-      sortOrder: box.sortOrder,
+      id: location.id,
+      label: location.name,
+      left: location.left,
+      top: location.top,
+      width: location.width,
+      height: location.height,
+      rotate: location.rotate,
+      sortOrder: location.sortOrder,
       assignedDeviceId,
       assignedDevice: assignedDevice ?? null,
       alertCount,

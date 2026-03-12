@@ -62,10 +62,10 @@ export type CenterMapSystemView = {
   properties: Array<{ id: string; name: string; value: string; inAlert: boolean }>;
 };
 
-type DraftBoxId = number | string;
+type DraftLocationId = number | string;
 
-type DraftBox = {
-  id: DraftBoxId;
+type DraftLocation = {
+  id: DraftLocationId;
   label: string;
   left: number;
   top: number;
@@ -81,7 +81,7 @@ type SelectDevice = {
 };
 
 type DragState = {
-  id: DraftBoxId;
+  id: DraftLocationId;
   startX: number;
   startY: number;
   originLeft: number;
@@ -108,7 +108,7 @@ function sortSystems(systems: CenterMapSystemView[]): CenterMapSystemView[] {
   });
 }
 
-function mapSystemToDraft(system: CenterMapSystemView): DraftBox {
+function mapSystemToDraft(system: CenterMapSystemView): DraftLocation {
   return {
     id: system.id,
     label: system.label,
@@ -152,8 +152,8 @@ export function CenterMapView({
   const [openSystemId, setOpenSystemId] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [layoutPending, setLayoutPending] = useState(false);
-  const [draftBoxes, setDraftBoxes] = useState<DraftBox[]>([]);
-  const [renameBoxId, setRenameBoxId] = useState<DraftBoxId | null>(null);
+  const [draftLocations, setDraftLocations] = useState<DraftLocation[]>([]);
+  const [renameLocationId, setRenameLocationId] = useState<DraftLocationId | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
   const [selectedBySystem, setSelectedBySystem] = useState<Record<string, string | undefined>>(() => {
@@ -193,21 +193,21 @@ export function CenterMapView({
   useEffect(() => {
     if (!isEditMode || !isMobile) return;
     setIsEditMode(false);
-    setDraftBoxes([]);
-    setRenameBoxId(null);
+    setDraftLocations([]);
+    setRenameLocationId(null);
     setRenameValue("");
     setOpenSystemId(null);
     toast({ title: "Edit mode disabled", description: "Map layout editing is available on desktop/tablet only." });
   }, [isEditMode, isMobile, toast]);
 
   useEffect(() => {
-    if (renameBoxId === null) return;
-    const stillExists = draftBoxes.some((box) => box.id === renameBoxId);
+    if (renameLocationId === null) return;
+    const stillExists = draftLocations.some((location) => location.id === renameLocationId);
     if (!stillExists) {
-      setRenameBoxId(null);
+      setRenameLocationId(null);
       setRenameValue("");
     }
-  }, [draftBoxes, renameBoxId]);
+  }, [draftLocations, renameLocationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -310,15 +310,15 @@ export function CenterMapView({
     const nextLeft = clamp(drag.originLeft + deltaX, 0, 100 - drag.width);
     const nextTop = clamp(drag.originTop + deltaY, 0, 100 - drag.height);
 
-    setDraftBoxes((curr) =>
-      curr.map((box) =>
-        box.id === drag.id
+    setDraftLocations((curr) =>
+      curr.map((location) =>
+        location.id === drag.id
           ? {
-              ...box,
+              ...location,
               left: nextLeft,
               top: nextTop,
             }
-          : box
+          : location
       )
     );
   }, []);
@@ -441,21 +441,21 @@ export function CenterMapView({
       return;
     }
 
-    setDraftBoxes(sortSystems(systemState).map(mapSystemToDraft));
+    setDraftLocations(sortSystems(systemState).map(mapSystemToDraft));
     setOpenSystemId(null);
     setIsEditMode(true);
   }
 
   function handleCancelEdit() {
     setIsEditMode(false);
-    setDraftBoxes([]);
-    setRenameBoxId(null);
+    setDraftLocations([]);
+    setRenameLocationId(null);
     setRenameValue("");
   }
 
-  function handleAddBox() {
-    setDraftBoxes((curr) => {
-      const nextLabel = pickNextLocationName(curr.map((box) => box.label));
+  function handleAddLocation() {
+    setDraftLocations((curr) => {
+      const nextLabel = pickNextLocationName(curr.map((location) => location.label));
       return [
         ...curr,
         {
@@ -472,61 +472,63 @@ export function CenterMapView({
     });
   }
 
-  function handleDeleteDraftBox(boxId: DraftBoxId) {
-    if (renameBoxId === boxId) {
-      setRenameBoxId(null);
+  function handleDeleteDraftLocation(locationId: DraftLocationId) {
+    if (renameLocationId === locationId) {
+      setRenameLocationId(null);
       setRenameValue("");
     }
-    setDraftBoxes((curr) =>
+    setDraftLocations((curr) =>
       curr
-        .filter((box) => box.id !== boxId)
-        .map((box, index) => ({
-          ...box,
+        .filter((location) => location.id !== locationId)
+        .map((location, index) => ({
+          ...location,
           sortOrder: index,
         }))
     );
   }
 
-  function handleDraftNameChange(boxId: DraftBoxId, nextName: string) {
-    setDraftBoxes((curr) => curr.map((box) => (box.id === boxId ? { ...box, label: nextName } : box)));
+  function handleDraftNameChange(locationId: DraftLocationId, nextName: string) {
+    setDraftLocations((curr) =>
+      curr.map((location) => (location.id === locationId ? { ...location, label: nextName } : location))
+    );
   }
 
-  function openRenameDialog(box: DraftBox) {
-    setRenameBoxId(box.id);
-    setRenameValue(box.label);
+  function openRenameDialog(location: DraftLocation) {
+    setRenameLocationId(location.id);
+    setRenameValue(location.label);
   }
 
   function closeRenameDialog() {
-    setRenameBoxId(null);
+    setRenameLocationId(null);
     setRenameValue("");
   }
 
   function handleRenameSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (renameBoxId === null) return;
+    if (renameLocationId === null) return;
     const nextName = renameValue.trim();
     if (!nextName) {
       toast({ title: "Name required", description: "Location name cannot be blank.", variant: "destructive" });
       return;
     }
-    handleDraftNameChange(renameBoxId, nextName);
+    handleDraftNameChange(renameLocationId, nextName);
     closeRenameDialog();
   }
 
-  function handleDragStart(event: React.MouseEvent<HTMLDivElement>, box: DraftBox) {
+  function handleDragStart(event: React.MouseEvent<HTMLDivElement>, location: DraftLocation) {
     if (!isEditMode || isMobile || layoutPending) return;
     if (event.button !== 0) return;
     if (event.target instanceof HTMLElement && event.target.closest("[data-no-drag='true']")) return;
     event.preventDefault();
 
     dragStateRef.current = {
-      id: box.id,
+      id: location.id,
       startX: event.clientX,
       startY: event.clientY,
-      originLeft: box.left,
-      originTop: box.top,
-      width: box.width,
-      height: box.height,
+      originLeft: location.left,
+      originTop: location.top,
+      width: location.width,
+      height: location.height,
     };
 
     window.addEventListener("mousemove", onDragMove);
@@ -534,14 +536,14 @@ export function CenterMapView({
   }
 
   async function handleSaveLayout() {
-    const payload = draftBoxes.map((box, index) => ({
-      id: typeof box.id === "number" ? box.id : undefined,
-      name: box.label,
-      left: box.left,
-      top: box.top,
-      width: box.width,
-      height: box.height,
-      rotate: box.rotate,
+    const payload = draftLocations.map((location, index) => ({
+      id: typeof location.id === "number" ? location.id : undefined,
+      name: location.label,
+      left: location.left,
+      top: location.top,
+      width: location.width,
+      height: location.height,
+      rotate: location.rotate,
       sortOrder: index,
     }));
 
@@ -555,7 +557,7 @@ export function CenterMapView({
 
     toast({ title: "Layout saved", description: "Center map layout updated globally." });
     setIsEditMode(false);
-    setDraftBoxes([]);
+    setDraftLocations([]);
     router.refresh();
   }
 
@@ -605,23 +607,23 @@ export function CenterMapView({
     );
   }
 
-  function renderDraftCard(box: DraftBox) {
+  function renderDraftCard(location: DraftLocation) {
     return (
       <div
-        key={String(box.id)}
-        onMouseDown={(event) => handleDragStart(event, box)}
+        key={String(location.id)}
+        onMouseDown={(event) => handleDragStart(event, location)}
         style={{
-          left: `${box.left}%`,
-          top: `${box.top}%`,
-          width: `${box.width}%`,
-          height: `${box.height}%`,
+          left: `${location.left}%`,
+          top: `${location.top}%`,
+          width: `${location.width}%`,
+          height: `${location.height}%`,
         }}
         className="absolute rounded-xl border-2 border-dashed border-slate-500 bg-slate-50/95 p-3 cursor-move overflow-hidden select-none"
       >
         <div className="flex h-full min-w-0 flex-col">
           <div className="px-2 pt-1">
             <p className="text-sm leading-snug font-semibold text-center text-slate-900 break-words line-clamp-3">
-              {box.label}
+              {location.label}
             </p>
           </div>
           <div className="flex-1" />
@@ -631,7 +633,7 @@ export function CenterMapView({
               variant="outline"
               size="icon"
               className="h-9 w-9 text-muted-foreground shrink-0"
-              onClick={() => openRenameDialog(box)}
+              onClick={() => openRenameDialog(location)}
               data-no-drag="true"
               aria-label="Rename location"
             >
@@ -642,7 +644,7 @@ export function CenterMapView({
               variant="outline"
               size="icon"
               className="h-9 w-9 text-muted-foreground shrink-0"
-              onClick={() => handleDeleteDraftBox(box.id)}
+              onClick={() => handleDeleteDraftLocation(location.id)}
               data-no-drag="true"
               aria-label="Delete location"
             >
@@ -666,9 +668,9 @@ export function CenterMapView({
             </Button>
           ) : (
             <>
-              <Button type="button" variant="outline" onClick={handleAddBox} disabled={layoutPending}>
+              <Button type="button" variant="outline" onClick={handleAddLocation} disabled={layoutPending}>
                 <Plus className="mr-1 h-4 w-4" />
-                Add Box
+                Add Location
               </Button>
               <Button type="button" onClick={handleSaveLayout} disabled={layoutPending || isMobile}>
                 <Save className="mr-1 h-4 w-4" />
@@ -694,9 +696,9 @@ export function CenterMapView({
         </div>
       ) : null}
 
-      {isEditMode && draftBoxes.length === 0 ? (
+      {isEditMode && draftLocations.length === 0 ? (
         <div className="rounded-xl border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
-          No map locations yet. Click Add Box to create one.
+          No map locations yet. Click Add Location to create one.
         </div>
       ) : null}
 
@@ -708,7 +710,7 @@ export function CenterMapView({
             isEditMode ? "select-none" : ""
           )}
         >
-          {isEditMode ? draftBoxes.map((box) => renderDraftCard(box)) : systemState.map((system) => renderSystemCard(system, true))}
+          {isEditMode ? draftLocations.map((location) => renderDraftCard(location)) : systemState.map((system) => renderSystemCard(system, true))}
         </div>
       </div>
 
@@ -844,7 +846,7 @@ export function CenterMapView({
       </Dialog>
 
       <Dialog
-        open={renameBoxId !== null}
+        open={renameLocationId !== null}
         onOpenChange={(open) => {
           if (!open) closeRenameDialog();
         }}
