@@ -659,8 +659,19 @@ export async function acceptInvite(
   const hashedPassword = await hashPassword(password)
   const now = new Date()
 
-  const inserted = await db.transaction(async (tx) => {
-    const [userRow] = await tx
+  const [claimedInvite] = await db
+    .update(userInvitesTable)
+    .set({ usedAt: now })
+    .where(and(eq(userInvitesTable.id, invite.id), isNull(userInvitesTable.usedAt), isNull(userInvitesTable.revokedAt)))
+    .returning({ id: userInvitesTable.id })
+
+  if (!claimedInvite) {
+    return { ok: false, errorCode: "invite_used", message: "Invite was already used" }
+  }
+
+  let createdUserId: number | null = null
+  try {
+    const [userRow] = await db
       .insert(usersTable)
       .values({
         name: invite.name,
@@ -677,27 +688,34 @@ export async function acceptInvite(
       })
       .returning({ id: usersTable.id })
 
-    await tx
-      .update(userInvitesTable)
-      .set({ usedAt: now })
-      .where(eq(userInvitesTable.id, invite.id))
+    createdUserId = userRow.id
 
-    await tx.insert(userAuditEventsTable).values({
+    await db.insert(userAuditEventsTable).values({
       actorUserId: invite.createdByUserId,
       targetUserId: userRow.id,
       action: "user_activated",
       source: "system",
       metadataJson: JSON.stringify({ inviteId: invite.id, email: invite.email, role: invite.role }),
     })
+  } catch (e) {
+    // Best-effort rollback for invite claim when account creation fails.
+    await db
+      .update(userInvitesTable)
+      .set({ usedAt: null })
+      .where(eq(userInvitesTable.id, invite.id))
 
-    return userRow
-  })
+    const msg = e instanceof Error ? e.message : "Unable to activate account"
+    if (msg.includes("unique") || msg.includes("duplicate")) {
+      return { ok: false, errorCode: "already_exists", message: "An account already exists for this email" }
+    }
+    return { ok: false, errorCode: "internal_error", message: "Unable to activate account right now" }
+  }
 
   revalidatePath("/app/user_management")
 
   return {
     ok: true,
     message: "Account activated. You can now sign in.",
-    data: { activated: !!inserted.id },
+    data: { activated: !!createdUserId },
   }
 }

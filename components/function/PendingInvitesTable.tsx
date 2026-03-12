@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +14,7 @@ interface PendingInvitesTableProps {
 export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const [generatedLinks, setGeneratedLinks] = useState<Record<number, string>>({})
 
   async function handleRevoke(id: number) {
     if (!window.confirm("Revoke this invite? The link will stop working immediately.")) {
@@ -37,9 +39,15 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
       return
     }
 
-    await navigator.clipboard.writeText(result.data.inviteLink)
-    toast({ title: "Invite regenerated", description: "New invite link copied to clipboard." })
-    router.refresh()
+    setGeneratedLinks((prev) => ({ ...prev, [id]: result.data.inviteLink }))
+    toast({ title: "Invite regenerated", description: "New invite link generated." })
+  }
+
+  async function copyLink(id: number) {
+    const link = generatedLinks[id]
+    if (!link) return
+    await navigator.clipboard.writeText(link)
+    toast({ title: "Copied", description: "Invite link copied to clipboard." })
   }
 
   if (invites.length === 0) {
@@ -75,8 +83,13 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
               <td className="py-3 px-2">{new Date(invite.expiresAt).toLocaleString()}</td>
               <td className="py-3 px-2 text-right whitespace-nowrap">
                 <Button variant="outline" size="sm" className="mr-2" onClick={() => handleRegenerate(invite.id)}>
-                  Regenerate + Copy
+                  Regenerate Link
                 </Button>
+                {generatedLinks[invite.id] && (
+                  <Button variant="outline" size="sm" className="mr-2" onClick={() => copyLink(invite.id)}>
+                    Copy Link
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"

@@ -104,7 +104,11 @@ export function AddUserForm() {
             )}
           />
 
-          <Button type="submit" className="w-full bg-tama hover:bg-tama/80" disabled={pending}>
+          <Button
+            type="submit"
+            className="w-full bg-tama text-white hover:bg-[#5A1818] transition-colors duration-200"
+            disabled={pending}
+          >
             {pending ? "Creating Invite..." : "Create Invite"}
           </Button>
         </form>

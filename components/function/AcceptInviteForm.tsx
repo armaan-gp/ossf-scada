@@ -36,7 +36,11 @@ export function AcceptInviteForm({ token }: { token: string }) {
         <Input id="confirmPassword" name="confirmPassword" type="password" minLength={8} required />
       </div>
       {!state.ok && state.message && <p className="text-sm text-destructive">{state.message}</p>}
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        className="w-full bg-tama text-white hover:bg-[#5A1818] transition-colors duration-200"
+        disabled={pending}
+      >
         {pending ? "Activating..." : "Activate Account"}
       </Button>
     </form>
