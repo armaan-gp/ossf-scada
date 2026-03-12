@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { regenerateInvite, revokeInvite, type PendingInviteItem } from "@/app/actions/admin"
@@ -8,6 +8,14 @@ import { useToast } from "@/hooks/use-toast"
 
 interface PendingInvitesTableProps {
   invites: PendingInviteItem[]
+}
+
+type InviteCreatedDetail = {
+  id: number
+  name: string
+  email: string
+  role: "admin" | "user"
+  expiresAt: string
 }
 
 type ClipboardResult = {
@@ -20,6 +28,39 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
   const { toast } = useToast()
   const [inviteRows, setInviteRows] = useState<PendingInviteItem[]>(invites)
   const [manualCopyByInviteId, setManualCopyByInviteId] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    setInviteRows(invites)
+  }, [invites])
+
+  useEffect(() => {
+    function onInviteCreated(event: Event) {
+      const customEvent = event as CustomEvent<InviteCreatedDetail>
+      const detail = customEvent.detail
+      if (!detail) return
+
+      setInviteRows((prev) => {
+        const filtered = prev.filter((invite) => invite.email.toLowerCase() !== detail.email.toLowerCase())
+        return [
+          {
+            id: detail.id,
+            name: detail.name,
+            email: detail.email,
+            role: detail.role,
+            createdAt: new Date(),
+            expiresAt: new Date(detail.expiresAt),
+            createdByUserId: null,
+          },
+          ...filtered,
+        ]
+      })
+    }
+
+    window.addEventListener("invite-created", onInviteCreated as EventListener)
+    return () => {
+      window.removeEventListener("invite-created", onInviteCreated as EventListener)
+    }
+  }, [])
 
   async function copyToClipboardWithFallback(text: string): Promise<ClipboardResult> {
     let firstError: unknown

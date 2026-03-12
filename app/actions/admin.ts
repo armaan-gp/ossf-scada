@@ -13,6 +13,7 @@ import {
 } from "@/db/schema"
 import { and, count, desc, eq, ilike, isNull, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { hashPassword } from "@/lib/password"
 import { getUser } from "@/lib/actions/auth"
 import { acceptInviteFormSchema, createInviteFormSchema } from "@/forms/userManagement"
@@ -710,10 +711,8 @@ export async function acceptInvite(
   }
 
   revalidatePath("/app/user_management")
-
-  return {
-    ok: true,
-    message: "Account activated. You can now sign in.",
-    data: { activated: !!createdUserId },
+  if (createdUserId) {
+    redirect("/login")
   }
+  return { ok: false, errorCode: "internal_error", message: "Unable to activate account right now" }
 }

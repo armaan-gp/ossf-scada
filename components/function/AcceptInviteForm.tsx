@@ -1,7 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useActionState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,15 +13,8 @@ const initialState = {
 } as const
 
 export function AcceptInviteForm({ token }: { token: string }) {
-  const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [state, action, pending] = useActionState(acceptInvite, initialState)
-
-  useEffect(() => {
-    if (state?.ok) {
-      router.push("/login")
-    }
-  }, [state, router])
 
   return (
     <form ref={formRef} action={action} onSubmit={() => formRef.current?.requestSubmit()} className="space-y-4">

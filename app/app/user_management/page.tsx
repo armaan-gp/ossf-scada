@@ -9,6 +9,8 @@ import { RecentUserActivity } from "@/components/function/RecentUserActivity"
 import { getPendingInvites, getRecentUserActivity, getUsers } from "@/app/actions/admin"
 import { getUser } from "@/lib/actions/auth"
 
+const RECENT_ACTIVITY_LIMIT = 8
+
 export default async function UsersSettingsPage({
   searchParams,
 }: {
@@ -27,7 +29,7 @@ export default async function UsersSettingsPage({
   const [usersResult, invitesResult, auditResult] = await Promise.all([
     getUsers({ page, pageSize: 20, query }),
     getPendingInvites({ page: invitePage, pageSize: 20, query }),
-    getRecentUserActivity(20),
+    getRecentUserActivity(RECENT_ACTIVITY_LIMIT),
   ])
 
   if (!usersResult.ok || !invitesResult.ok || !auditResult.ok) {
@@ -140,7 +142,9 @@ export default async function UsersSettingsPage({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>Recent User Activity</CardTitle>
-              <CardDescription>Audit trail for invite and user-management changes.</CardDescription>
+              <CardDescription>
+                Audit trail for invite and user-management changes (latest {RECENT_ACTIVITY_LIMIT} events).
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <RecentUserActivity events={auditResult.data} />

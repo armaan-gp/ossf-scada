@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -14,7 +13,6 @@ import { useToast } from "@/hooks/use-toast"
 
 export function AddUserForm() {
   const { toast } = useToast()
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
   const [lastInviteExpiry, setLastInviteExpiry] = useState<string | null>(null)
@@ -38,9 +36,19 @@ export function AddUserForm() {
 
       setLastInviteLink(result.data.inviteLink)
       setLastInviteExpiry(result.data.expiresAt)
+      window.dispatchEvent(
+        new CustomEvent("invite-created", {
+          detail: {
+            id: result.data.inviteId,
+            name: values.name.trim(),
+            email: values.email.trim().toLowerCase(),
+            role: values.role,
+            expiresAt: result.data.expiresAt,
+          },
+        })
+      )
       form.reset({ name: "", email: "", role: "user" })
       toast({ title: "Invite created", description: "Copy and share the one-time invite link." })
-      router.refresh()
     })
   }
 

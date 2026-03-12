@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,8 +30,8 @@ function formatDateTime(value: Date | string | null) {
 }
 
 export function UserTable({ users, currentUserId }: UserTableProps) {
-  const router = useRouter()
   const { toast } = useToast()
+  const [userRows, setUserRows] = useState<UserListItem[]>(users)
 
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null)
   const [editName, setEditName] = useState("")
@@ -40,6 +39,10 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
   const [editRole, setEditRole] = useState<"user" | "admin">("user")
   const [editStatus, setEditStatus] = useState<"active" | "disabled">("active")
   const [pending, setPending] = useState(false)
+
+  useEffect(() => {
+    setUserRows(users)
+  }, [users])
 
   function openEdit(user: UserListItem) {
     setEditingUser(user)
@@ -67,9 +70,21 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       return
     }
 
+    setUserRows((prev) =>
+      prev.map((row) =>
+        row.id === editingUser.id
+          ? {
+              ...row,
+              name: editName.trim(),
+              email: editEmail.trim(),
+              isAdmin: editRole === "admin",
+              status: editStatus,
+            }
+          : row
+      )
+    )
     toast({ title: "Updated", description: result.message })
     setEditingUser(null)
-    router.refresh()
   }
 
   async function handleDelete(user: UserListItem) {
@@ -84,8 +99,8 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
       return
     }
 
+    setUserRows((prev) => prev.filter((row) => row.id !== user.id))
     toast({ title: "Deleted", description: result.message })
-    router.refresh()
   }
 
   return (
@@ -104,7 +119,7 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {userRows.map((user) => (
               <tr key={user.id} className="border-b hover:bg-gray-50">
                 <td className="py-3 px-2">{user.name}</td>
                 <td className="py-3 px-2">{user.email}</td>
