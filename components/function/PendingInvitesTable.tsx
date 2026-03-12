@@ -171,7 +171,7 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
                 <td className="py-3 px-2">{new Date(invite.expiresAt).toLocaleString()}</td>
                 <td className="py-3 px-2 text-right whitespace-nowrap">
                   <Button variant="outline" size="sm" className="mr-2" onClick={() => handleRegenerate(invite.id)}>
-                    Regenerate + Copy
+                    Regenerate Link
                   </Button>
                   <Button
                     variant="ghost"
