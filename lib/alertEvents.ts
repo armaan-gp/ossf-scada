@@ -46,6 +46,37 @@ function formatCsvAlertValueForFloat(raw: string, decimalPlaces: number | null):
   return parsed.toFixed(decimalPlaces);
 }
 
+async function getAlertDecimalFormattingContext(): Promise<{
+  globalDecimalPlaces: number | null;
+  perPropertyDecimalMap: Map<string, number | null>;
+}> {
+  const [overrideRows, globalRow] = await Promise.all([
+    db.select().from(propertyDisplayOverridesTable),
+    db.query.propertyDisplaySettingsTable.findFirst(),
+  ]);
+
+  const perPropertyDecimalMap = new Map<string, number | null>();
+  for (const row of overrideRows) {
+    perPropertyDecimalMap.set(`${row.thingId}:${row.propertyId}`, row.decimalPlaces ?? null);
+  }
+
+  return {
+    globalDecimalPlaces: globalRow?.globalDecimalPlaces ?? null,
+    perPropertyDecimalMap,
+  };
+}
+
+function formatAlertValue(
+  row: Pick<AlertEventView, "thingId" | "propertyId" | "propertyType" | "valueRaw">,
+  ctx: { globalDecimalPlaces: number | null; perPropertyDecimalMap: Map<string, number | null> }
+): string {
+  const decimalPlaces =
+    ctx.perPropertyDecimalMap.get(`${row.thingId}:${row.propertyId}`) ?? ctx.globalDecimalPlaces;
+  return isFloatType(row.propertyType)
+    ? formatCsvAlertValueForFloat(row.valueRaw, decimalPlaces)
+    : row.valueRaw;
+}
+
 async function trimAlertEventsToMax(maxRows: number): Promise<void> {
   const rows = await db
     .select({ id: alertEventsTable.id })
@@ -136,23 +167,31 @@ export async function recordAlertEvent(input: {
 
 export async function getAlertEventRows(limit = 100): Promise<AlertEventView[]> {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_ALERT_EVENT_ROWS);
-  return db
-    .select({
-      occurredAt: alertEventsTable.occurredAt,
-      thingId: alertEventsTable.thingId,
-      thingName: alertEventsTable.thingName,
-      propertyId: alertEventsTable.propertyId,
-      propertyName: alertEventsTable.propertyName,
-      propertyType: alertEventsTable.propertyType,
-      valueRaw: alertEventsTable.valueRaw,
-    })
-    .from(alertEventsTable)
-    .orderBy(desc(alertEventsTable.occurredAt), desc(alertEventsTable.id))
-    .limit(safeLimit);
+  const [rows, decimalContext] = await Promise.all([
+    db
+      .select({
+        occurredAt: alertEventsTable.occurredAt,
+        thingId: alertEventsTable.thingId,
+        thingName: alertEventsTable.thingName,
+        propertyId: alertEventsTable.propertyId,
+        propertyName: alertEventsTable.propertyName,
+        propertyType: alertEventsTable.propertyType,
+        valueRaw: alertEventsTable.valueRaw,
+      })
+      .from(alertEventsTable)
+      .orderBy(desc(alertEventsTable.occurredAt), desc(alertEventsTable.id))
+      .limit(safeLimit),
+    getAlertDecimalFormattingContext(),
+  ]);
+
+  return rows.map((row) => ({
+    ...row,
+    valueRaw: formatAlertValue(row, decimalContext),
+  }));
 }
 
 export async function buildAlertEventsCsv(): Promise<string> {
-  const [rows, overrideRows, globalRow] = await Promise.all([
+  const [rows, decimalContext] = await Promise.all([
     db
       .select({
         occurredAt: alertEventsTable.occurredAt,
@@ -165,23 +204,12 @@ export async function buildAlertEventsCsv(): Promise<string> {
       })
       .from(alertEventsTable)
       .orderBy(asc(alertEventsTable.occurredAt), asc(alertEventsTable.id)),
-    db.select().from(propertyDisplayOverridesTable),
-    db.query.propertyDisplaySettingsTable.findFirst(),
+    getAlertDecimalFormattingContext(),
   ]);
-
-  const globalDecimalPlaces = globalRow?.globalDecimalPlaces ?? null;
-  const perPropertyDecimalMap = new Map<string, number | null>();
-  for (const row of overrideRows) {
-    perPropertyDecimalMap.set(`${row.thingId}:${row.propertyId}`, row.decimalPlaces ?? null);
-  }
 
   const lines = ["datetime,plc_name,plc_id,property_name,property_id,property_type,value"];
   for (const row of rows) {
-    const decimalPlaces =
-      perPropertyDecimalMap.get(`${row.thingId}:${row.propertyId}`) ?? globalDecimalPlaces;
-    const value = isFloatType(row.propertyType)
-      ? formatCsvAlertValueForFloat(row.valueRaw, decimalPlaces)
-      : row.valueRaw;
+    const value = formatAlertValue(row, decimalContext);
 
     lines.push(
       [
