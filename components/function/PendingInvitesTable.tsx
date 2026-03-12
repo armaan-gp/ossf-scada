@@ -1,5 +1,6 @@
 "use client"
 
+import { Fragment, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,9 +11,57 @@ interface PendingInvitesTableProps {
   invites: PendingInviteItem[]
 }
 
+type ClipboardResult = {
+  success: boolean
+  method: "clipboard" | "execCommand" | "none"
+  error?: string
+}
+
 export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const [manualCopyByInviteId, setManualCopyByInviteId] = useState<Record<number, string>>({})
+
+  async function copyToClipboardWithFallback(text: string): Promise<ClipboardResult> {
+    let firstError: unknown
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+        return { success: true, method: "clipboard" }
+      }
+    } catch (error) {
+      firstError = error
+    }
+
+    try {
+      if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea")
+        textarea.value = text
+        textarea.setAttribute("readonly", "")
+        textarea.style.position = "fixed"
+        textarea.style.left = "-9999px"
+        textarea.style.opacity = "0"
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+        textarea.setSelectionRange(0, textarea.value.length)
+        const copied = document.execCommand("copy")
+        document.body.removeChild(textarea)
+        if (copied) {
+          return { success: true, method: "execCommand" }
+        }
+      }
+    } catch (error) {
+      if (!firstError) firstError = error
+    }
+
+    return {
+      success: false,
+      method: "none",
+      error: firstError instanceof Error ? firstError.message : "Clipboard access was blocked by your browser.",
+    }
+  }
 
   async function handleRevoke(id: number) {
     if (!window.confirm("Revoke this invite? The link will stop working immediately.")) {
@@ -37,8 +86,46 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
       return
     }
 
-    await navigator.clipboard.writeText(result.data.inviteLink)
-    toast({ title: "Invite regenerated", description: "New invite link copied to clipboard." })
+    const copyResult = await copyToClipboardWithFallback(result.data.inviteLink)
+    if (copyResult.success) {
+      setManualCopyByInviteId((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      toast({ title: "Invite regenerated", description: "Invite regenerated. Link copied to clipboard." })
+      router.refresh()
+      return
+    }
+
+    setManualCopyByInviteId((prev) => ({ ...prev, [id]: result.data.inviteLink }))
+    toast({
+      title: "Invite regenerated",
+      description: "Invite regenerated, but auto-copy failed. Use manual copy below.",
+      variant: "destructive",
+    })
+  }
+
+  async function handleManualCopy(id: number) {
+    const link = manualCopyByInviteId[id]
+    if (!link) return
+
+    const copyResult = await copyToClipboardWithFallback(link)
+    if (!copyResult.success) {
+      toast({
+        title: "Copy failed",
+        description: copyResult.error ?? "Clipboard access is still blocked by your browser.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setManualCopyByInviteId((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    toast({ title: "Copied", description: "Invite link copied to clipboard." })
     router.refresh()
   }
 
@@ -63,30 +150,45 @@ export function PendingInvitesTable({ invites }: PendingInvitesTableProps) {
         </thead>
         <tbody>
           {invites.map((invite) => (
-            <tr key={invite.id} className="border-b hover:bg-gray-50">
-              <td className="py-3 px-2">{invite.name}</td>
-              <td className="py-3 px-2">{invite.email}</td>
-              <td className="py-3 px-2">
-                <Badge variant="secondary" className={invite.role === "admin" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>
-                  {roleLabel(invite.role)}
-                </Badge>
-              </td>
-              <td className="py-3 px-2">{new Date(invite.createdAt).toLocaleString()}</td>
-              <td className="py-3 px-2">{new Date(invite.expiresAt).toLocaleString()}</td>
-              <td className="py-3 px-2 text-right whitespace-nowrap">
-                <Button variant="outline" size="sm" className="mr-2" onClick={() => handleRegenerate(invite.id)}>
-                  Regenerate + Copy
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => handleRevoke(invite.id)}
-                >
-                  Revoke
-                </Button>
-              </td>
-            </tr>
+            <Fragment key={invite.id}>
+              <tr className="border-b hover:bg-gray-50">
+                <td className="py-3 px-2">{invite.name}</td>
+                <td className="py-3 px-2">{invite.email}</td>
+                <td className="py-3 px-2">
+                  <Badge variant="secondary" className={invite.role === "admin" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>
+                    {roleLabel(invite.role)}
+                  </Badge>
+                </td>
+                <td className="py-3 px-2">{new Date(invite.createdAt).toLocaleString()}</td>
+                <td className="py-3 px-2">{new Date(invite.expiresAt).toLocaleString()}</td>
+                <td className="py-3 px-2 text-right whitespace-nowrap">
+                  <Button variant="outline" size="sm" className="mr-2" onClick={() => handleRegenerate(invite.id)}>
+                    Regenerate + Copy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => handleRevoke(invite.id)}
+                  >
+                    Revoke
+                  </Button>
+                </td>
+              </tr>
+              {manualCopyByInviteId[invite.id] && (
+                <tr className="border-b bg-amber-50/40">
+                  <td colSpan={6} className="py-3 px-2">
+                    <p className="text-xs text-gray-700 mb-2">
+                      Auto-copy was blocked by your browser. Use this button to copy the regenerated link.
+                    </p>
+                    <p className="text-xs text-gray-600 break-all mb-2">{manualCopyByInviteId[invite.id]}</p>
+                    <Button variant="outline" size="sm" onClick={() => handleManualCopy(invite.id)}>
+                      Copy Link
+                    </Button>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
