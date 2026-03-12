@@ -104,30 +104,33 @@ export function UserTable({ users, currentUserId }: UserTableProps) {
     })
     setUserRows((prev) => prev.filter((row) => row.id !== user.id))
 
+    let result: Awaited<ReturnType<typeof deleteUser>>
     try {
-      const result = await deleteUser({ id: user.id })
-      if (!result.ok) {
-        setOptimisticallyDeletedUserIds((prev) => {
-          const next = new Set(prev)
-          next.delete(user.id)
-          return next
-        })
-        setUserRows(previousRows)
-        toast({ title: "Error", description: result.message, variant: "destructive" })
-        return
-      }
-
-      toast({ title: "Deleted", description: result.message })
-      router.refresh()
+      result = await deleteUser({ id: user.id })
     } catch {
+      // Unknown network/client error. Keep optimistic removal and refresh from server source of truth.
+      toast({
+        title: "Delete request status unknown",
+        description: "The delete may have succeeded. Syncing table now.",
+        variant: "destructive",
+      })
+      router.refresh()
+      return
+    }
+
+    if (!result.ok) {
       setOptimisticallyDeletedUserIds((prev) => {
         const next = new Set(prev)
         next.delete(user.id)
         return next
       })
       setUserRows(previousRows)
-      toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" })
+      toast({ title: "Error", description: result.message, variant: "destructive" })
+      return
     }
+
+    toast({ title: "Deleted", description: result.message })
+    router.refresh()
   }
 
   return (

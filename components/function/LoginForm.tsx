@@ -5,7 +5,7 @@ import React, { useActionState, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { handleLogin } from '@/lib/actions/auth';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -66,9 +66,6 @@ export default function LoginForm() {
                                     <Input placeholder="Enter your email adress" {...field} />
                                 </FormControl>
                                 <div className='flex gap-2'>
-                                    <FormDescription>
-                                        Your email will not be shared
-                                    </FormDescription>
                                     <FormMessage>
                                         {state?.errors?.email?.[0]}
                                     </FormMessage>
