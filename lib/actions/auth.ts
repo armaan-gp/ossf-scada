@@ -5,6 +5,8 @@ import { createSession, deleteSession } from '../session';
 import { verifyAuth } from '../dal';
 import { db } from '@/db';
 import { verifyPassword } from '../password';
+import { eq } from 'drizzle-orm';
+import { usersTable } from '@/db/schema';
 
 type LoginError = {
     errors: {
@@ -55,6 +57,9 @@ export async function handleLogin(prevState: any, formData: FormData): Promise<L
     if (!user) {
         return genericError;
     }
+    if (user.status !== 'active') {
+        return genericError;
+    }
 
     // check if passwords match
     const match = await verifyPassword(
@@ -67,7 +72,11 @@ export async function handleLogin(prevState: any, formData: FormData): Promise<L
 
     // create session
     try {
-        const session = await createSession(user.email);
+        await createSession(user.email);
+        await db
+            .update(usersTable)
+            .set({ lastLoginAt: new Date(), updatedAt: new Date(), updatedByUserId: user.id })
+            .where(eq(usersTable.id, user.id));
     } catch (error) {
         return {
             errors: {

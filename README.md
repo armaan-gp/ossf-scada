@@ -124,6 +124,7 @@ Primary pages:
 - `/app/center-map`
 - `/app/settings`
 - `/app/user_management`
+- `/accept-invite`
 
 ---
 
@@ -390,19 +391,29 @@ Actions:
 - Delete user
   - Removes user record
 
-### Add New User section
+### Create Invite section
 Fields:
 - Full Name
 - Email Address
-- Password
+- Role (`User` or `Admin`)
 
 Action:
-- `Add User`
+- `Create Invite`
 
-Validation:
-- Name required.
-- Email valid format.
-- Password minimum 6 characters.
+Behavior:
+- Generates a one-time invite link for account activation.
+- Invite links are copied manually by admins and shared out-of-band.
+
+### Pending Invites section
+- Shows all active (unused, unrevoked, unexpired) invite links.
+- `Regenerate + Copy` revokes the previous link and creates a new one.
+- `Revoke` invalidates the invite immediately.
+
+### Recent User Activity section
+- Displays audit history for key user-management actions:
+  - invite created/revoked
+  - user activated/updated/disabled/deleted
+  - role changes
 
 ---
 

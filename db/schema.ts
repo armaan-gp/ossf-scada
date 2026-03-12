@@ -1,4 +1,19 @@
-import { integer, pgTable, varchar, boolean, text, timestamp, real, primaryKey } from "drizzle-orm/pg-core";
+import { integer, pgTable, varchar, boolean, text, timestamp, real, primaryKey, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
+
+export const userOriginEnum = pgEnum("user_origin", ["invite", "seed", "manual_script", "migration"]);
+export const userStatusEnum = pgEnum("user_status", ["invited", "active", "disabled"]);
+export const inviteRoleEnum = pgEnum("invite_role", ["admin", "user"]);
+export const userAuditActionEnum = pgEnum("user_audit_action", [
+  "invite_created",
+  "invite_revoked",
+  "user_activated",
+  "user_updated",
+  "role_changed",
+  "user_disabled",
+  "user_deleted",
+  "password_reset_forced",
+]);
+export const userAuditSourceEnum = pgEnum("user_audit_source", ["ui_admin", "script_seed", "migration", "system"]);
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -6,10 +21,51 @@ export const usersTable = pgTable("users", {
   email: varchar({ length: 255 }).notNull().unique(),
   hashedPassword: varchar({ length: 255 }).notNull(),
   isAdmin: boolean().notNull().default(false),
+  createdByUserId: integer().references((): AnyPgColumn => usersTable.id, { onDelete: "set null" }),
+  updatedByUserId: integer().references((): AnyPgColumn => usersTable.id, { onDelete: "set null" }),
+  origin: userOriginEnum().notNull().default("migration"),
+  status: userStatusEnum().notNull().default("active"),
+  inviteAcceptedAt: timestamp({ withTimezone: true }),
+  lastLoginAt: timestamp({ withTimezone: true }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
 export type User = typeof usersTable.$inferSelect
 export type UserInsert = typeof usersTable.$inferInsert
+export type UserOrigin = typeof userOriginEnum.enumValues[number];
+export type UserStatus = typeof userStatusEnum.enumValues[number];
+
+export const userInvitesTable = pgTable("user_invites", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  email: varchar({ length: 255 }).notNull(),
+  name: varchar({ length: 255 }).notNull(),
+  role: inviteRoleEnum().notNull().default("user"),
+  tokenHash: varchar({ length: 255 }).notNull().unique(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  usedAt: timestamp({ withTimezone: true }),
+  revokedAt: timestamp({ withTimezone: true }),
+  createdByUserId: integer().references((): AnyPgColumn => usersTable.id, { onDelete: "set null" }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type UserInvite = typeof userInvitesTable.$inferSelect;
+export type UserInviteInsert = typeof userInvitesTable.$inferInsert;
+export type InviteRole = typeof inviteRoleEnum.enumValues[number];
+
+export const userAuditEventsTable = pgTable("user_audit_events", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  actorUserId: integer().references((): AnyPgColumn => usersTable.id, { onDelete: "set null" }),
+  targetUserId: integer().references((): AnyPgColumn => usersTable.id, { onDelete: "set null" }),
+  action: userAuditActionEnum().notNull(),
+  source: userAuditSourceEnum().notNull().default("ui_admin"),
+  metadataJson: text().notNull().default("{}"),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export type UserAuditEvent = typeof userAuditEventsTable.$inferSelect;
+export type UserAuditEventInsert = typeof userAuditEventsTable.$inferInsert;
+export type UserAuditAction = typeof userAuditActionEnum.enumValues[number];
 
 // Alert email config (single row): sender email, encrypted app password, recipients as JSON array of email strings.
 export const alertEmailConfigTable = pgTable("alert_email_config", {

@@ -32,6 +32,7 @@ export async function verifyAuth() {
   });
   const exists = !!user;
   if (!exists) return redirect('/login');
+  if (user.status !== "active") return redirect('/login');
 
   return {
     user: user,

@@ -7,7 +7,7 @@
 
 import { db } from '@/db';
 import { hashPassword } from './password';
-import { usersTable } from '@/db/schema';
+import { userAuditEventsTable, usersTable } from '@/db/schema';
 
 async function createUsers() {
     // Delete all existing users
@@ -16,21 +16,42 @@ async function createUsers() {
 
     // Create admin user
     const adminPassword = await hashPassword('admins');
-    await db.insert(usersTable).values({
+    const [admin] = await db.insert(usersTable).values({
         name: 'Admin User',
         email: 'admin@tama.org',
         hashedPassword: adminPassword,
         isAdmin: true,
-    });
+        origin: 'seed',
+        status: 'active',
+    }).returning({ id: usersTable.id });
 
     // Create student user
     const studentPassword = await hashPassword('students');
-    await db.insert(usersTable).values({
+    const [student] = await db.insert(usersTable).values({
         name: 'Student User',
         email: 'student@tama.org',
         hashedPassword: studentPassword,
         isAdmin: false,
-    });
+        origin: 'seed',
+        status: 'active',
+    }).returning({ id: usersTable.id });
+
+    await db.insert(userAuditEventsTable).values([
+        {
+            actorUserId: null,
+            targetUserId: admin.id,
+            action: 'user_activated',
+            source: 'script_seed',
+            metadataJson: JSON.stringify({ email: 'admin@tama.org', origin: 'seed' }),
+        },
+        {
+            actorUserId: null,
+            targetUserId: student.id,
+            action: 'user_activated',
+            source: 'script_seed',
+            metadataJson: JSON.stringify({ email: 'student@tama.org', origin: 'seed' }),
+        },
+    ]);
 
     console.log('Users created successfully!');
 }
