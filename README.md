@@ -32,7 +32,7 @@ This application lets operators and admins:
 - Arduino IoT API client credentials
 
 ## Environment Variables
-Set these in `.env`:
+Set these in `.env.local`:
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -49,9 +49,9 @@ Set these in `.env`:
 ## Setup and Run
 1. Create your local environment file:
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
-2. Fill in `.env` with real values.
+2. Fill in `.env.local` with real values.
 3. Install dependencies:
 ```bash
 npm install
