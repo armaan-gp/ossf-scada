@@ -1,15 +1,13 @@
 'use client';
 // Import required components and hooks
-import { redirect } from 'next/navigation'
-import React, { useActionState, useRef } from 'react'
+import React, { useActionState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { handleLogin } from '@/lib/actions/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginFormSchema, LoginFormSchemaType } from '@/forms/login';
+import { loginFormSchema } from '@/forms/login';
 import { useToast } from '@/hooks/use-toast';
 
 // Initial state for form errors
@@ -35,8 +33,6 @@ export default function LoginForm() {
         }
     })
 
-    const formRef = useRef<HTMLFormElement>(null);
-
     // Show toast notification for error messages
     React.useEffect(() => {
         if (state?.message) {
@@ -51,9 +47,7 @@ export default function LoginForm() {
     return (
         <>
             <Form {...form}>
-                <form ref={formRef}
-                    action={action}
-                    onSubmit={() => formRef.current?.requestSubmit()}>
+                <form action={action}>
 
                     {/* Email input field */}
                     <FormField
