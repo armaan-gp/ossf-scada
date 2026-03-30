@@ -18,11 +18,22 @@ export function encrypt(plainText: string): string {
 
 export function decrypt(cipherText: string): string {
   if (!cipherText || !cipherText.includes(":")) return "";
-  const [ivHex, encryptedHex] = cipherText.split(":");
-  const iv = Buffer.from(ivHex, "hex");
-  const decipher = createDecipheriv(ALGO, getKey(), iv);
-  return Buffer.concat([
-    decipher.update(Buffer.from(encryptedHex, "hex")),
-    decipher.final(),
-  ]).toString("utf8");
+  try {
+    const [ivHex, encryptedHex] = cipherText.split(":");
+    if (!ivHex || !encryptedHex) return "";
+
+    const iv = Buffer.from(ivHex, "hex");
+    if (iv.length !== IV_LENGTH) return "";
+
+    const encrypted = Buffer.from(encryptedHex, "hex");
+    if (encrypted.length === 0) return "";
+
+    const decipher = createDecipheriv(ALGO, getKey(), iv);
+    return Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]).toString("utf8");
+  } catch {
+    return "";
+  }
 }
