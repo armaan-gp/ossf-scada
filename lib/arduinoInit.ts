@@ -1,15 +1,25 @@
-
-
 // eslint-disable-next-line
 const ArduinoIoTClient = require('@arduino/arduino-iot-client');
-
-
 
 // Interfaces
 interface AccessTokenResponse {
   access_token: string;
   expires_in: number;
   token_type: string;
+}
+
+export interface ThingProperty {
+  id: string;
+  name?: string;
+  type?: string;
+  permission?: "READ_ONLY" | "READ_WRITE" | string;
+  update_strategy?: string;
+  variable_name?: string;
+  tag?: string;
+  persist?: boolean;
+  last_value?: unknown;
+  value_updated_at?: string;
+  [key: string]: unknown;
 }
 
 interface Device {
@@ -23,7 +33,7 @@ interface Device {
   connection_type?: string;
   created_at: string;
   device_status: string;
-  events?: any[];
+  events?: unknown[];
   fqbn?: string;
   last_activity_at?: string;
   ota_available?: boolean;
@@ -42,11 +52,19 @@ interface Thing {
   device_id?: string;
   device_name?: string;
   device_type?: string;
-  properties?: any[];
+  properties?: ThingProperty[];
   properties_count?: number;
   sketch_id?: string;
   updated_at?: string;
   webhook_active?: boolean;
+}
+
+function getRequiredEnv(name: "ARDUINO_API_CLIENT_ID" | "ARDUINO_API_CLIENT_SECRET"): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
 }
 
 export class ArduinoApiRequestError extends Error {
@@ -71,8 +89,8 @@ export function isArduinoUnauthorizedError(error: unknown): error is ArduinoApiR
 async function getToken(): Promise<string> {
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
-    client_id: process.env.ARDUINO_API_CLIENT_ID!,
-    client_secret: process.env.ARDUINO_API_CLIENT_SECRET!,
+    client_id: getRequiredEnv("ARDUINO_API_CLIENT_ID"),
+    client_secret: getRequiredEnv("ARDUINO_API_CLIENT_SECRET"),
     audience: 'https://api2.arduino.cc/iot',
   });
 
@@ -92,7 +110,10 @@ async function getToken(): Promise<string> {
     );
   }
 
-  const data: AccessTokenResponse = await response.json();
+  const data = (await response.json()) as Partial<AccessTokenResponse>;
+  if (!data.access_token || typeof data.access_token !== "string") {
+    throw new Error("Failed to obtain access token: Arduino response did not contain an access token");
+  }
   return data.access_token;
 }
 
@@ -130,7 +151,7 @@ async function getThing(thingId: string): Promise<Thing> {
 }
 
 // Add this new function before the exports
-async function updateProperty(thingId: string, propertyId: string, value: any): Promise<any> {
+async function updateProperty(thingId: string, propertyId: string, value: unknown): Promise<unknown> {
   const accessToken = await getToken();
 
   const apiClient = ArduinoIoTClient.ApiClient.instance;

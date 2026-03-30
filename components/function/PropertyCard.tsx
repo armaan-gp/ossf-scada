@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,18 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPropertyRecordingPreview } from "@/app/actions/recordings";
 import { formatPropertyDisplayValue, resolvePropertyDecimalPlaces } from "@/lib/propertyValueDisplay";
+import type { ThingProperty } from "@/lib/arduinoInit";
 
-interface ArduinoProperty {
+interface ArduinoProperty extends ThingProperty {
     id: string;
-    name: string;
-    type: string;
-    permission: "READ_ONLY" | "READ_WRITE";
-    update_strategy: string;
-    variable_name: string;
-    tag: string;
-    persist: boolean;
-    last_value: any;
-    value_updated_at: string;
+    name?: string;
+    type?: string;
+    permission?: string;
+    update_strategy?: string;
+    variable_name?: string;
+    tag?: string;
+    persist?: boolean;
+    last_value?: unknown;
+    value_updated_at?: string;
 }
 
 interface PropertyCardProps {
@@ -50,19 +51,25 @@ export function PropertyCard({
     propertyDecimalPlacesMap,
 }: PropertyCardProps) {
     const [isUpdating, setIsUpdating] = useState(false);
-    const [optimisticValue, setOptimisticValue] = useState<any>(null);
+    const [optimisticValue, setOptimisticValue] = useState<unknown | null>(null);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewRows, setPreviewRows] = useState<Array<{ recordedAt: Date; value: string; alertCount: number }>>([]);
 
     const displayValue = optimisticValue !== null ? optimisticValue : property.last_value;
     const decimalPlaces = resolvePropertyDecimalPlaces(thingId, property.id, globalDecimalPlaces, propertyDecimalPlacesMap);
-    const displayValueText = formatPropertyDisplayValue(displayValue, property.type, decimalPlaces);
+    const displayValueText = formatPropertyDisplayValue(displayValue, property.type ?? "", decimalPlaces);
+    const inputDisplayValue =
+        displayValue === null || displayValue === undefined
+            ? ""
+            : typeof displayValue === "string" || typeof displayValue === "number"
+                ? displayValue
+                : String(displayValue);
     const isRecordingEnabled = recordingConfig?.enabled === true;
     const csvUrl = `/api/recordings/${encodeURIComponent(thingId)}/${encodeURIComponent(property.id)}/csv`;
 
-    const handlePropertyUpdate = async (value: any) => {
-        if (value === property.last_value) return;
+    const handlePropertyUpdate = async (value: unknown) => {
+        if (Object.is(value, property.last_value)) return;
 
         setOptimisticValue(value);
         setIsUpdating(true);
@@ -82,6 +89,12 @@ export function PropertyCard({
         }
     };
 
+    useEffect(() => {
+        if (optimisticValue !== null && Object.is(property.last_value, optimisticValue)) {
+            setOptimisticValue(null);
+        }
+    }, [optimisticValue, property.last_value]);
+
     const openPreview = async () => {
         setPreviewOpen(true);
         setPreviewLoading(true);
@@ -97,16 +110,12 @@ export function PropertyCard({
         }
     };
 
-    if (optimisticValue !== null && property.last_value === optimisticValue) {
-        setOptimisticValue(null);
-    }
-
     return (
         <Card className="border-muted">
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-lg inline-flex items-center gap-2">
-                        {property.name}
+                        {property.name ?? property.id}
                         {inAlert && <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" aria-label="Out of range" />}
                     </CardTitle>
                     <Badge
@@ -120,7 +129,7 @@ export function PropertyCard({
                     </Badge>
                 </div>
                 <CardDescription>
-                    Type: {property.type} • Update: {property.update_strategy}
+                    Type: {property.type ?? "—"} • Update: {property.update_strategy ?? "—"}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -128,28 +137,28 @@ export function PropertyCard({
                     <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Current Value</h4>
                         <div className="text-xl font-semibold">
-                            {property.type === "STATUS" ? (displayValue ? "True" : "False") : displayValueText}
+                            {property.type === "STATUS" ? (Boolean(displayValue) ? "True" : "False") : displayValueText}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Last updated: <FormattedDateTime iso={property.value_updated_at} />
+                            Last updated: <FormattedDateTime iso={property.value_updated_at ?? ""} />
                         </p>
                         {property.permission === "READ_WRITE" && (
                             <div className="mt-4">
                                 {property.type === "STATUS" ? (
                                     <div className="flex items-center space-x-2">
                                         <Switch
-                                            checked={!!displayValue}
+                                            checked={Boolean(displayValue)}
                                             disabled={isUpdating}
                                             onCheckedChange={handlePropertyUpdate}
                                         />
                                         <span className="text-sm text-muted-foreground">
-                                            {displayValue ? "On" : "Off"}
+                                            {Boolean(displayValue) ? "On" : "Off"}
                                         </span>
                                     </div>
                                 ) : (
                                     <Input
                                         type="text"
-                                        value={displayValue ?? ""}
+                                        value={inputDisplayValue}
                                         className="w-full"
                                         disabled={isUpdating}
                                         onChange={(e) => handlePropertyUpdate(e.target.value)}
@@ -165,9 +174,9 @@ export function PropertyCard({
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Property Details</h4>
                         <dl className="grid grid-cols-2 gap-1 text-sm">
                             <dt className="text-muted-foreground">Variable:</dt>
-                            <dd>{property.variable_name}</dd>
+                            <dd>{property.variable_name ?? "—"}</dd>
                             <dt className="text-muted-foreground">Tag:</dt>
-                            <dd>{property.tag}</dd>
+                            <dd>{property.tag ?? "—"}</dd>
                             <dt className="text-muted-foreground">Persist:</dt>
                             <dd>{property.persist ? "Yes" : "No"}</dd>
                         </dl>
@@ -188,7 +197,7 @@ export function PropertyCard({
                                             </DialogTrigger>
                                             <DialogContent className="max-w-2xl">
                                                 <DialogHeader>
-                                                    <DialogTitle>{property.name} CSV Preview</DialogTitle>
+                                                    <DialogTitle>{property.name ?? property.id} CSV Preview</DialogTitle>
                                                 </DialogHeader>
                                                 {previewLoading ? (
                                                     <p className="text-sm text-muted-foreground">Loading preview...</p>

@@ -24,11 +24,12 @@ export async function verifySession() {
 
 export async function verifyAuth() {
   const { payload } = await verifySession();
-  if (!payload.sub) return redirect('/login');
+  const email = payload.sub;
+  if (!email || typeof email !== "string") return redirect('/login');
 
   // check if user exists
   const user = await db.query.usersTable.findFirst({
-    where: (usersTable, { eq }) => eq(usersTable.email, payload.sub!),
+    where: (usersTable, { eq }) => eq(usersTable.email, email),
   });
   const exists = !!user;
   if (!exists) return redirect('/login');

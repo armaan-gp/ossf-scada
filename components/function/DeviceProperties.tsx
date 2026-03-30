@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { fetchThing } from "@/lib/actions/arduino";
 import { getAlertStateForProperties } from "@/app/actions/settings";
+import type { ThingProperty } from "@/lib/arduinoInit";
 
 interface DevicePropertiesProps {
     thingId: string;
-    initialProperties: any[];
+    initialProperties: ThingProperty[];
     initialAlertMap: Record<string, boolean>;
     initialRecordingConfigMap: Record<string, { enabled: boolean; intervalMinutes: number | null; maxRows: number | null }>;
     globalDecimalPlaces: number | null;
@@ -22,35 +23,37 @@ export function DeviceProperties({
     globalDecimalPlaces,
     propertyDecimalPlacesMap,
 }: DevicePropertiesProps) {
-    const [properties, setProperties] = useState(initialProperties);
+    const [properties, setProperties] = useState<ThingProperty[]>(initialProperties);
     const [alertMap, setAlertMap] = useState<Record<string, boolean>>(initialAlertMap);
 
-    const refreshProperties = async () => {
+    const refreshProperties = useCallback(async () => {
         try {
             const result = await fetchThing(thingId);
             if (result.success && result.data?.properties) {
-                const next = result.data.properties as any[];
+                const next = result.data.properties as ThingProperty[];
                 setProperties(next);
                 const nextAlertMap = await getAlertStateForProperties(
                     thingId,
-                    next.map((p: any) => ({ id: p.id, type: p.type, last_value: p.last_value }))
+                    next.map((p) => ({ id: p.id, type: p.type ?? "", last_value: p.last_value }))
                 );
                 setAlertMap(nextAlertMap);
             }
         } catch (error) {
             console.error("Failed to fetch device properties:", error);
         }
-    };
+    }, [thingId]);
 
     useEffect(() => {
-        refreshProperties();
-        const interval = setInterval(refreshProperties, 5000);
+        void refreshProperties();
+        const interval = setInterval(() => {
+            void refreshProperties();
+        }, 5000);
         return () => clearInterval(interval);
-    }, [thingId]);
+    }, [refreshProperties]);
 
     return (
         <div className="grid gap-6">
-            {properties.map((property: any) => (
+            {properties.map((property) => (
                 <PropertyCard
                     key={property.id}
                     property={property}

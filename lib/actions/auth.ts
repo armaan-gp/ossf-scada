@@ -22,11 +22,11 @@ export async function getUser() {
 }
 
 export async function handleLogout() {
-    deleteSession();
+    await deleteSession();
     redirect('/login');
 }
 
-export async function handleLogin(prevState: any, formData: FormData): Promise<LoginError> {
+export async function handleLogin(_prevState: LoginError, formData: FormData): Promise<LoginError> {
     // validate form data
     const validatedFields = loginFormSchema.safeParse({
         email: formData.get('email'),
@@ -39,12 +39,6 @@ export async function handleLogin(prevState: any, formData: FormData): Promise<L
         };
     }
 
-    // find user and check if they exist
-    const user = await db.query.usersTable.findFirst({
-        where: (usersTable, { eq }) =>
-            eq(usersTable.email, validatedFields.data.email),
-    });
-
     // Use the same generic message for both non-existent user and wrong password
     const genericError = {
         errors: {
@@ -54,6 +48,23 @@ export async function handleLogin(prevState: any, formData: FormData): Promise<L
         message: 'Invalid email or password',
     };
 
+    // find user and check if they exist
+    let user;
+    try {
+        user = await db.query.usersTable.findFirst({
+            where: (usersTable, { eq }) =>
+                eq(usersTable.email, validatedFields.data.email),
+        });
+    } catch (error) {
+        return {
+            errors: {
+                email: [],
+                password: [],
+            },
+            message: 'Unable to connect. Please try again later.',
+        };
+    }
+
     if (!user) {
         return genericError;
     }
@@ -62,10 +73,15 @@ export async function handleLogin(prevState: any, formData: FormData): Promise<L
     }
 
     // check if passwords match
-    const match = await verifyPassword(
-        validatedFields.data.password,
-        user.hashedPassword
-    );
+    let match = false;
+    try {
+        match = await verifyPassword(
+            validatedFields.data.password,
+            user.hashedPassword
+        );
+    } catch (error) {
+        return genericError;
+    }
     if (!match) {
         return genericError;
     }

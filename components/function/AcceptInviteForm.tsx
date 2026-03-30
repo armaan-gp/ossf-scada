@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef } from "react"
+import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,11 +13,10 @@ const initialState = {
 } as const
 
 export function AcceptInviteForm({ token }: { token: string }) {
-  const formRef = useRef<HTMLFormElement>(null)
   const [state, action, pending] = useActionState(acceptInvite, initialState)
 
   return (
-    <form ref={formRef} action={action} onSubmit={() => formRef.current?.requestSubmit()} className="space-y-4">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="token" value={token} />
       <div>
         <Label htmlFor="password">Password</Label>

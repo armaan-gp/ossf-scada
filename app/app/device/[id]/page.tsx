@@ -107,8 +107,14 @@ export default async function SystemDetailPage({
                             <div>
                                 <dt className="text-sm font-medium text-muted-foreground">Last Active</dt>
                                 <dd className="text-sm font-semibold flex items-center">
-                                    <Clock className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
-                                    <FormattedDateTime iso={device.last_activity_at!} />
+                                    {device.last_activity_at ? (
+                                        <>
+                                            <Clock className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                                            <FormattedDateTime iso={device.last_activity_at} />
+                                        </>
+                                    ) : (
+                                        "—"
+                                    )}
                                 </dd>
                             </div>
                         </dl>
