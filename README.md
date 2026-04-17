@@ -44,6 +44,23 @@ npm --version
 
 ## Detailed Setup (Step-by-Step)
 
+### Before You Start: Where to Run These Commands
+Use a code editor/IDE with an integrated terminal. Recommended: Visual Studio Code.
+
+If using VS Code:
+1. Open VS Code.
+2. Open the integrated terminal from the top menu:
+   - `Terminal` -> `New Terminal`
+3. Confirm a terminal panel appears at the bottom of the screen.
+4. Run every command in this guide in that bottom terminal panel.
+
+If using another IDE (WebStorm, Cursor, etc.):
+1. Open the project/workspace in the IDE.
+2. Open the IDE's built-in terminal panel (usually at the bottom).
+3. Run every command in that terminal panel.
+
+You can also use a standalone system terminal (Terminal on macOS, PowerShell on Windows), but all commands below are written assuming you run them in a shell terminal.
+
 ### 1) Clone the repository
 ```bash
 git clone <REPOSITORY_URL>
