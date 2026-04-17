@@ -47,8 +47,8 @@ function toPositiveInt(raw: string): number | null {
 const DATA_RESET_WARNING =
   "This change will delete previously recorded CSV data for this property. Download the current CSV first if you need to keep it. Continue?";
 const MAX_RECORDING_ROWS = 10000;
-const MIN_RECORDING_INTERVAL_MINUTES = 15;
-const RECORDING_INTERVAL_STEP_MINUTES = 15;
+const MIN_RECORDING_INTERVAL_MINUTES = 1;
+const RECORDING_INTERVAL_STEP_MINUTES = 1;
 
 export function PropertyRecordingEditor({
   plcs,
@@ -238,10 +238,13 @@ export function PropertyRecordingEditor({
                           step={RECORDING_INTERVAL_STEP_MINUTES}
                           value={draft.interval}
                           onChange={(e) => updateDraft(k, { interval: e.target.value })}
-                          placeholder="15, 30, 45..."
+                          placeholder="1, 5, 10..."
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Use whole minutes only. Set this to a multiple of your recordings cron interval.
+                        </p>
                       </div>
                       <div className="w-28">
                         <Label className="text-xs">Max rows</Label>

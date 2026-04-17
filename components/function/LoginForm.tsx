@@ -57,7 +57,7 @@ export default function LoginForm() {
                             <FormItem>
                                 <FormLabel>Email</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Enter your email adress" {...field} />
+                                    <Input placeholder="Enter your email address" {...field} />
                                 </FormControl>
                                 <div className='flex gap-2'>
                                     <FormMessage>

@@ -101,7 +101,8 @@ These jobs are responsible for:
 
 ## Property Recording Behavior Summary
 - Recording can be enabled per property.
-- Interval must be a whole number >= 15 and a multiple of 15 minutes.
+- Interval must be a whole number of minutes (integer, no decimals) and at least 1.
+- The selected interval should be a multiple of the `/api/recordings/run` cron interval.
 - Max rows must be between 1 and 10,000.
 - Changing interval/max rows (or disabling recording) clears historical rows after confirmation.
 
@@ -397,7 +398,8 @@ Workflow:
 4. Click `Save`.
 
 Rules and constraints:
-- Interval: integer, >= 15, multiple of 15.
+- Interval: integer, >= 1 (no decimals).
+- Interval should be a multiple of your `/api/recordings/run` cron interval.
 - Max rows: integer, 1 to 10,000.
 - Disabling recording or changing interval/max rows triggers data-clear confirmation and removes old rows after confirmation.
 
@@ -450,7 +452,7 @@ Behavior:
 
 ## Operational Notes for Admins
 - Configure alert email sender + recipients before expecting email delivery.
-- Ensure cron scheduler calls both run endpoints for continuous background processing (recommended every 15 minutes).
+- Ensure cron scheduler calls both run endpoints for continuous background processing (recommended every 15 minutes for current cost profile).
 - Keep `CRON_SECRET` configured in production and send it as Bearer token.
 - After schema changes, run `npm run push` before deployment.
 - If updating from older center-map schema, run the rename migration in `drizzle/0002_rename_center_map_boxes_to_locations.sql`.
