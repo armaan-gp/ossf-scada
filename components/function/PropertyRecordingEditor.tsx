@@ -47,8 +47,8 @@ function toPositiveInt(raw: string): number | null {
 const DATA_RESET_WARNING =
   "This change will delete previously recorded CSV data for this property. Download the current CSV first if you need to keep it. Continue?";
 const MAX_RECORDING_ROWS = 10000;
-const MIN_RECORDING_INTERVAL_MINUTES = 10;
-const RECORDING_INTERVAL_STEP_MINUTES = 10;
+const MIN_RECORDING_INTERVAL_MINUTES = 15;
+const RECORDING_INTERVAL_STEP_MINUTES = 15;
 
 export function PropertyRecordingEditor({
   plcs,
@@ -238,7 +238,7 @@ export function PropertyRecordingEditor({
                           step={RECORDING_INTERVAL_STEP_MINUTES}
                           value={draft.interval}
                           onChange={(e) => updateDraft(k, { interval: e.target.value })}
-                          placeholder="10, 20, 30..."
+                          placeholder="15, 30, 45..."
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />

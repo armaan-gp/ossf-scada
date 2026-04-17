@@ -38,8 +38,8 @@ export type RecordingRowView = {
 };
 
 const MAX_RECORDING_ROWS = 10000;
-const MIN_RECORDING_INTERVAL_MINUTES = 10;
-const RECORDING_INTERVAL_MULTIPLE_MINUTES = 10;
+const MIN_RECORDING_INTERVAL_MINUTES = 15;
+const RECORDING_INTERVAL_MULTIPLE_MINUTES = 15;
 
 function normalizeRecordedValue(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -64,7 +64,7 @@ function isValidIntervalMinutes(value: number | null): value is number {
   );
 }
 
-const CRON_BASE_INTERVAL_MINUTES = 10;
+const CRON_BASE_INTERVAL_MINUTES = 15;
 const CRON_BASE_INTERVAL_MS = CRON_BASE_INTERVAL_MINUTES * 60 * 1000;
 
 function floorToCronSlot(date: Date): Date {
