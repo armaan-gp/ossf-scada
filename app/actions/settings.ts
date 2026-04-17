@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import {
   alertEmailConfigTable,
+  alertCooldownStateTable,
   alertNotificationsTable,
   propertyAlertThresholdsTable,
   propertyDisplayOverridesTable,
@@ -16,7 +17,18 @@ export type AlertEmailConfigForm = {
   senderEmail: string;
   appPassword: string;
   recipients: string[];
+  alertCooldownMinutes: number;
 };
+
+const DEFAULT_ALERT_COOLDOWN_MINUTES = 60;
+const MIN_ALERT_COOLDOWN_MINUTES = 15;
+
+function normalizeAlertCooldownMinutes(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < MIN_ALERT_COOLDOWN_MINUTES) {
+    return DEFAULT_ALERT_COOLDOWN_MINUTES;
+  }
+  return value;
+}
 
 /** Get alert email config for the settings form. Password is never returned. */
 export async function getAlertEmailConfig(): Promise<AlertEmailConfigForm | null> {
@@ -41,6 +53,7 @@ export async function getAlertEmailConfig(): Promise<AlertEmailConfigForm | null
     senderEmail: row.senderEmail ?? "",
     appPassword: "",
     recipients,
+    alertCooldownMinutes: normalizeAlertCooldownMinutes(row.alertCooldownMinutes),
   };
 }
 
@@ -94,6 +107,79 @@ export async function saveAlertEmailRecipients(recipients: string[]): Promise<{ 
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed to save" };
   }
+}
+
+function validateAlertCooldownInput(hours: number, minutes: number): number {
+  if (!Number.isInteger(hours) || hours < 0) {
+    throw new Error("Hours must be a whole number that is 0 or greater.");
+  }
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) {
+    throw new Error("Minutes must be a whole number between 0 and 59.");
+  }
+
+  const totalMinutes = (hours * 60) + minutes;
+  if (totalMinutes < MIN_ALERT_COOLDOWN_MINUTES) {
+    throw new Error(`Alert cooldown must be at least ${MIN_ALERT_COOLDOWN_MINUTES} minutes.`);
+  }
+  return totalMinutes;
+}
+
+export async function saveAlertCooldownConfig(hours: number, minutes: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const cooldownMinutes = validateAlertCooldownInput(hours, minutes);
+    const existing = await db.query.alertEmailConfigTable.findFirst();
+    const updatedAt = new Date();
+
+    if (existing) {
+      await db.update(alertEmailConfigTable).set({
+        alertCooldownMinutes: cooldownMinutes,
+        updatedAt,
+      }).where(eq(alertEmailConfigTable.id, existing.id));
+    } else {
+      await db.insert(alertEmailConfigTable).values({
+        senderEmail: "",
+        appPasswordEncrypted: "",
+        recipientsJson: "[]",
+        alertCooldownMinutes: cooldownMinutes,
+        updatedAt,
+      });
+    }
+
+    revalidatePath("/app/settings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to save alert cooldown." };
+  }
+}
+
+export async function getAlertCooldownMinutes(): Promise<number> {
+  const row = await db.query.alertEmailConfigTable.findFirst();
+  return normalizeAlertCooldownMinutes(row?.alertCooldownMinutes);
+}
+
+export async function getLastTriggeredAt(thingId: string, propertyId: string): Promise<Date | null> {
+  const row = await db.query.alertCooldownStateTable.findFirst({
+    where: and(
+      eq(alertCooldownStateTable.thingId, thingId),
+      eq(alertCooldownStateTable.propertyId, propertyId)
+    ),
+  });
+  return row?.lastTriggeredAt ?? null;
+}
+
+export async function setLastTriggeredAt(thingId: string, propertyId: string, when: Date): Promise<void> {
+  await db.insert(alertCooldownStateTable).values({
+    thingId,
+    propertyId,
+    lastTriggeredAt: when,
+    updatedAt: when,
+  }).onConflictDoUpdate({
+    target: [alertCooldownStateTable.thingId, alertCooldownStateTable.propertyId],
+    set: {
+      lastTriggeredAt: when,
+      updatedAt: when,
+    },
+  });
 }
 
 /** Check if we already sent alert email for this (thingId, propertyId) in this alert episode. */

@@ -1,7 +1,12 @@
 import "server-only";
 import { getThing } from "@/lib/arduinoInit";
 import { isPropertyInAlert } from "@/lib/alertRanges";
-import { getPropertyThreshold, hasSentAlertEmail, recordAlertEmailSent, clearAlertEmailRecord } from "@/app/actions/settings";
+import {
+  getAlertCooldownMinutes,
+  getLastTriggeredAt,
+  getPropertyThreshold,
+  setLastTriggeredAt,
+} from "@/app/actions/settings";
 import { sendAlertEmail } from "@/lib/sendAlertEmail";
 import { clearAlertEpisode, markAlertEpisodeActive, recordAlertEvent } from "@/lib/alertEvents";
 
@@ -33,7 +38,10 @@ export async function evaluateThingAlerts(
   let newAlertEvents = 0;
   let emailsSent = 0;
   let emailsFailed = 0;
-  const shouldTrackAlertEvents = options.trackAlertEvents === true || options.sendEmailsForNewAlerts === true;
+  const shouldTrackAlertEvents = options.trackAlertEvents === true;
+  const shouldSendEmails = options.sendEmailsForNewAlerts === true;
+  const shouldWriteSideEffects = shouldTrackAlertEvents || shouldSendEmails;
+  const cooldownMinutes = shouldWriteSideEffects ? await getAlertCooldownMinutes() : 0;
 
   for (const prop of properties) {
     const type = (prop.type ?? "").toUpperCase();
@@ -49,7 +57,7 @@ export async function evaluateThingAlerts(
       alertCount++;
       alerts.push({ propertyId: prop.id, inAlert: true, name: prop.name ?? prop.variable_name });
 
-      if (shouldTrackAlertEvents) {
+      if (shouldWriteSideEffects) {
         const propertyName = prop.name ?? prop.variable_name ?? prop.id;
         const episode = await markAlertEpisodeActive({
           thingId,
@@ -58,38 +66,45 @@ export async function evaluateThingAlerts(
           propertyName,
           propertyType: type,
         });
-        if (episode.isNew) {
-          await recordAlertEvent({
-            thingId,
-            thingName: deviceName,
-            propertyId: prop.id,
-            propertyName,
-            propertyType: type,
-            value: prop.last_value,
-          });
-          newAlertEvents++;
-        }
-      }
 
-      if (options.sendEmailsForNewAlerts) {
-        const sent = await hasSentAlertEmail(thingId, prop.id);
-        if (!sent) {
-          const result = await sendAlertEmail(undefined, {
-            deviceName,
-            propertyName: prop.name ?? prop.variable_name ?? prop.id,
-            value: prop.last_value,
-          });
-          if (result.success) {
-            await recordAlertEmailSent(thingId, prop.id);
-            emailsSent++;
-          } else {
-            emailsFailed++;
+        if (episode.isNew) {
+          const now = new Date();
+          const lastTriggeredAt = await getLastTriggeredAt(thingId, prop.id);
+          const inCooldown = lastTriggeredAt !== null
+            && (now.getTime() - lastTriggeredAt.getTime()) < (cooldownMinutes * 60 * 1000);
+
+          if (!inCooldown) {
+            if (shouldTrackAlertEvents) {
+              await recordAlertEvent({
+                thingId,
+                thingName: deviceName,
+                propertyId: prop.id,
+                propertyName,
+                propertyType: type,
+                value: prop.last_value,
+              });
+              newAlertEvents++;
+            }
+
+            if (shouldSendEmails) {
+              const result = await sendAlertEmail(undefined, {
+                deviceName,
+                propertyName: prop.name ?? prop.variable_name ?? prop.id,
+                value: prop.last_value,
+              });
+              if (result.success) {
+                emailsSent++;
+              } else {
+                emailsFailed++;
+              }
+            }
+
+            await setLastTriggeredAt(thingId, prop.id, now);
           }
         }
       }
     } else {
-      if (shouldTrackAlertEvents) await clearAlertEpisode(thingId, prop.id);
-      if (options.sendEmailsForNewAlerts) await clearAlertEmailRecord(thingId, prop.id);
+      if (shouldWriteSideEffects) await clearAlertEpisode(thingId, prop.id);
       alerts.push({ propertyId: prop.id, inAlert: false, name: prop.name ?? prop.variable_name });
     }
   }

@@ -56,9 +56,7 @@ export default async function SystemDetailPage({
     }
 
     const thingId = device.thing?.id ?? device.id;
-    const { alerts: alertStates } = await evaluateThingAlerts(thingId, device.name ?? device.id, {
-        sendEmailsForNewAlerts: true,
-    });
+    const { alerts: alertStates } = await evaluateThingAlerts(thingId, device.name ?? device.id);
     const [recordingConfigMap, globalDecimalPlaces, propertyDecimalPlacesMap] = await Promise.all([
         getThingRecordingConfigs(thingId),
         getGlobalDecimalPlaces(),

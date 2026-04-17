@@ -74,6 +74,7 @@ export const alertEmailConfigTable = pgTable("alert_email_config", {
   appPasswordEncrypted: text().notNull().default(""),
   recipient: varchar({ length: 255 }).notNull().default(""), // legacy single recipient fallback
   recipientsJson: text().notNull().default("[]"),
+  alertCooldownMinutes: integer().notNull().default(60),
   alertMessage: text().notNull().default("Alert: {deviceName} - {propertyName} is out of range (value: {value})."),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
@@ -91,6 +92,23 @@ export const alertNotificationsTable = pgTable("alert_notifications", {
 
 export type AlertNotification = typeof alertNotificationsTable.$inferSelect;
 export type AlertNotificationInsert = typeof alertNotificationsTable.$inferInsert;
+
+// Per-property cooldown state to suppress repeated alert event/email generation.
+export const alertCooldownStateTable = pgTable(
+  "alert_cooldown_state",
+  {
+    thingId: varchar({ length: 255 }).notNull(),
+    propertyId: varchar({ length: 255 }).notNull(),
+    lastTriggeredAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.thingId, table.propertyId] }),
+  ]
+);
+
+export type AlertCooldownState = typeof alertCooldownStateTable.$inferSelect;
+export type AlertCooldownStateInsert = typeof alertCooldownStateTable.$inferInsert;
 
 // Tracks currently active alert episodes by (thing, property) to detect new alert starts.
 export const activeAlertEpisodesTable = pgTable(

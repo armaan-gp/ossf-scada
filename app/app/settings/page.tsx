@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
-import { GmailAccountForm, EmailRecipientsForm } from "@/components/function/EmailAlertConfigForm"
+import { AlertCooldownForm, GmailAccountForm, EmailRecipientsForm } from "@/components/function/EmailAlertConfigForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
 import { getAlertEmailConfig, getDecimalPlacesMap, getGlobalDecimalPlaces, getThresholdsMap } from "@/app/actions/settings"
 import { getAllRecordingConfigsMap } from "@/app/actions/recordings"
@@ -51,6 +51,18 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <EmailRecipientsForm initialRecipients={alertEmailConfig?.recipients ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <CardTitle>Alert cooldown</CardTitle>
+          <CardDescription>
+            Configure cooldown time between alert registrations for each PLC property. Minimum is 15 minutes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertCooldownForm initialCooldownMinutes={alertEmailConfig?.alertCooldownMinutes ?? 60} />
         </CardContent>
       </Card>
 

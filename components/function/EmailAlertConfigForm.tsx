@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { saveAlertEmailSenderConfig, saveAlertEmailRecipients } from "@/app/actions/settings";
+import { saveAlertCooldownConfig, saveAlertEmailSenderConfig, saveAlertEmailRecipients } from "@/app/actions/settings";
 import type { AlertEmailConfigForm as AlertEmailConfigFormType } from "@/app/actions/settings";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
+
+const MIN_ALERT_COOLDOWN_MINUTES = 15;
 
 export function GmailAccountForm({ initialConfig }: { initialConfig: AlertEmailConfigFormType | null }) {
   const [senderEmail, setSenderEmail] = useState(initialConfig?.senderEmail ?? "");
@@ -63,6 +65,111 @@ export function GmailAccountForm({ initialConfig }: { initialConfig: AlertEmailC
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving..." : "Save sender settings"}
+      </Button>
+    </form>
+  );
+}
+
+function parseWholeNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isInteger(n)) return null;
+  return n;
+}
+
+export function AlertCooldownForm({ initialCooldownMinutes }: { initialCooldownMinutes: number }) {
+  const initialHours = Math.floor(initialCooldownMinutes / 60);
+  const initialMinutes = initialCooldownMinutes % 60;
+  const [hours, setHours] = useState(String(initialHours));
+  const [minutes, setMinutes] = useState(String(initialMinutes));
+  const [pending, setPending] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setValidationError(null);
+
+    const parsedHours = parseWholeNumber(hours);
+    const parsedMinutes = parseWholeNumber(minutes);
+
+    if (parsedHours === null || parsedHours < 0) {
+      setValidationError("Hours must be a whole number that is 0 or greater.");
+      return;
+    }
+    if (parsedMinutes === null || parsedMinutes < 0 || parsedMinutes > 59) {
+      setValidationError("Minutes must be a whole number between 0 and 59.");
+      return;
+    }
+
+    const totalMinutes = (parsedHours * 60) + parsedMinutes;
+    if (totalMinutes < MIN_ALERT_COOLDOWN_MINUTES) {
+      setValidationError(`Alert cooldown must be at least ${MIN_ALERT_COOLDOWN_MINUTES} minutes.`);
+      return;
+    }
+
+    setPending(true);
+    const result = await saveAlertCooldownConfig(parsedHours, parsedMinutes);
+    setPending(false);
+
+    if (!result.ok) {
+      setValidationError(result.error ?? "Failed to save alert cooldown.");
+      toast({ title: "Error", description: result.error ?? "Failed to save alert cooldown.", variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Saved", description: "Alert cooldown updated." });
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        <div className="w-24">
+          <Label htmlFor="alertCooldownHours">Hours</Label>
+          <Input
+            id="alertCooldownHours"
+            type="number"
+            min={0}
+            step={1}
+            value={hours}
+            onChange={(e) => {
+              setHours(e.target.value);
+              setValidationError(null);
+            }}
+            className="mt-1"
+            disabled={pending}
+          />
+        </div>
+        <div className="w-24">
+          <Label htmlFor="alertCooldownMinutes">Minutes</Label>
+          <Input
+            id="alertCooldownMinutes"
+            type="number"
+            min={0}
+            max={59}
+            step={1}
+            value={minutes}
+            onChange={(e) => {
+              setMinutes(e.target.value);
+              setValidationError(null);
+            }}
+            className="mt-1"
+            disabled={pending}
+          />
+        </div>
+      </div>
+      {validationError ? (
+        <p className="text-xs text-destructive">{validationError}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Minimum cooldown is {MIN_ALERT_COOLDOWN_MINUTES} minutes.
+        </p>
+      )}
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving..." : "Save cooldown"}
       </Button>
     </form>
   );

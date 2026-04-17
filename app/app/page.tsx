@@ -29,9 +29,7 @@ export default async function Page() {
     for (const device of devices) {
         if (device.device_status !== "ONLINE") continue;
         const thingId = device.thing?.id ?? device.id;
-        const { alertCount } = await evaluateThingAlerts(thingId, device.name ?? device.id, {
-            sendEmailsForNewAlerts: true,
-        });
+        const { alertCount } = await evaluateThingAlerts(thingId, device.name ?? device.id);
         deviceAlertMap[device.id] = alertCount;
         totalPropertyAlerts += alertCount;
     }

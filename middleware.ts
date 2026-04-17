@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { decrypt } from './lib/session'
 
 export default async function middleware(req: NextRequest) {
@@ -8,7 +7,7 @@ export default async function middleware(req: NextRequest) {
     const isProtectedRoute = path.startsWith('/app')
 
     // Decrypt session from session cookie
-    const cookie = (await cookies()).get('session')?.value
+    const cookie = req.cookies.get('session')?.value
     const session = await decrypt(cookie)
 
     // Redirect to login if the user is not authenticated
