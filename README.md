@@ -101,7 +101,7 @@ These jobs are responsible for:
 
 ## Property Recording Behavior Summary
 - Recording can be enabled per property.
-- Interval must be a whole number >= 5 and a multiple of 5 minutes.
+- Interval must be a whole number >= 10 and a multiple of 10 minutes.
 - Max rows must be between 1 and 10,000.
 - Changing interval/max rows (or disabling recording) clears historical rows after confirmation.
 
@@ -354,7 +354,17 @@ Behavior:
 - Cooldown is global, but applied per PLC property.
 - Default cooldown is 60 minutes.
 
-### 5.4 Alert Thresholds section
+### 5.4 Alert History Maintenance section
+Action:
+- `Clear alert history`
+
+Behavior:
+- Deletes all rows from `alert_events` (history preview and CSV source).
+- Does not delete alert thresholds, active episodes, cooldown state, or other settings.
+- Requires confirmation.
+- Button is disabled for non-admin users.
+
+### 5.5 Alert Thresholds section
 Workflow:
 1. Choose PLC from dropdown.
 2. For each numeric property (`INT` / `FLOAT`), set `Min` and/or `Max`.
@@ -365,7 +375,7 @@ Behavior:
 - Non-numeric properties are shown as non-thresholdable.
 - Out-of-range values drive alert state and email notifications.
 
-### 5.5 Property Value Display section
+### 5.6 Property Value Display section
 Global setting:
 - Set decimal places for all values.
 - Blank means no forced decimal formatting.
@@ -379,7 +389,7 @@ Rules:
 - FLOAT properties support decimal-place formatting.
 - Clearing override reverts to global setting.
 
-### 5.6 Property CSV Recording section
+### 5.7 Property CSV Recording section
 Workflow:
 1. Choose PLC.
 2. For each property, toggle `Record CSV data`.
@@ -387,7 +397,7 @@ Workflow:
 4. Click `Save`.
 
 Rules and constraints:
-- Interval: integer, >= 5, multiple of 5.
+- Interval: integer, >= 10, multiple of 10.
 - Max rows: integer, 1 to 10,000.
 - Disabling recording or changing interval/max rows triggers data-clear confirmation and removes old rows after confirmation.
 
@@ -440,7 +450,7 @@ Behavior:
 
 ## Operational Notes for Admins
 - Configure alert email sender + recipients before expecting email delivery.
-- Ensure cron scheduler calls both run endpoints for continuous background processing.
+- Ensure cron scheduler calls both run endpoints for continuous background processing (recommended every 10 minutes).
 - Keep `CRON_SECRET` configured in production and send it as Bearer token.
 - After schema changes, run `npm run push` before deployment.
 - If updating from older center-map schema, run the rename migration in `drizzle/0002_rename_center_map_boxes_to_locations.sql`.

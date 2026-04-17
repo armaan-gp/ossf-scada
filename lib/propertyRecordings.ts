@@ -38,6 +38,8 @@ export type RecordingRowView = {
 };
 
 const MAX_RECORDING_ROWS = 10000;
+const MIN_RECORDING_INTERVAL_MINUTES = 10;
+const RECORDING_INTERVAL_MULTIPLE_MINUTES = 10;
 
 function normalizeRecordedValue(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -57,12 +59,12 @@ function isValidIntervalMinutes(value: number | null): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&
-    value >= 5 &&
-    value % 5 === 0
+    value >= MIN_RECORDING_INTERVAL_MINUTES &&
+    value % RECORDING_INTERVAL_MULTIPLE_MINUTES === 0
   );
 }
 
-const CRON_BASE_INTERVAL_MINUTES = 5;
+const CRON_BASE_INTERVAL_MINUTES = 10;
 const CRON_BASE_INTERVAL_MS = CRON_BASE_INTERVAL_MINUTES * 60 * 1000;
 
 function floorToCronSlot(date: Date): Date {
@@ -79,13 +81,50 @@ async function clearRowsForProperty(thingId: string, propertyId: string): Promis
   );
 }
 
+function normalizeLegacyIntervalMinutes(value: number | null): number | null {
+  if (!isPositiveInteger(value)) return value;
+  if (isValidIntervalMinutes(value)) return value;
+  return Math.ceil(value / RECORDING_INTERVAL_MULTIPLE_MINUTES) * RECORDING_INTERVAL_MULTIPLE_MINUTES;
+}
+
+async function normalizeStoredIntervalForConfig(input: {
+  thingId: string;
+  propertyId: string;
+  intervalMinutes: number | null;
+  updatedAt?: Date;
+}): Promise<number | null> {
+  const normalized = normalizeLegacyIntervalMinutes(input.intervalMinutes);
+  if (normalized === input.intervalMinutes || normalized === null) return normalized;
+
+  await db
+    .update(propertyRecordingConfigsTable)
+    .set({
+      intervalMinutes: normalized,
+      updatedAt: input.updatedAt ?? new Date(),
+    })
+    .where(
+      and(
+        eq(propertyRecordingConfigsTable.thingId, input.thingId),
+        eq(propertyRecordingConfigsTable.propertyId, input.propertyId)
+      )
+    );
+
+  return normalized;
+}
+
 export async function getRecordingConfigsMap(): Promise<Record<string, RecordingConfigView>> {
   const rows = await db.select().from(propertyRecordingConfigsTable);
   const map: Record<string, RecordingConfigView> = {};
   for (const row of rows) {
+    const intervalMinutes = await normalizeStoredIntervalForConfig({
+      thingId: row.thingId,
+      propertyId: row.propertyId,
+      intervalMinutes: row.intervalMinutes ?? null,
+    });
+
     map[`${row.thingId}:${row.propertyId}`] = {
       enabled: row.enabled,
-      intervalMinutes: row.intervalMinutes ?? null,
+      intervalMinutes,
       maxRows: row.maxRows ?? null,
     };
   }
@@ -96,9 +135,15 @@ export async function getRecordingConfigsForThing(thingId: string): Promise<Reco
   const rows = await db.select().from(propertyRecordingConfigsTable).where(eq(propertyRecordingConfigsTable.thingId, thingId));
   const map: Record<string, RecordingConfigView> = {};
   for (const row of rows) {
+    const intervalMinutes = await normalizeStoredIntervalForConfig({
+      thingId: row.thingId,
+      propertyId: row.propertyId,
+      intervalMinutes: row.intervalMinutes ?? null,
+    });
+
     map[row.propertyId] = {
       enabled: row.enabled,
-      intervalMinutes: row.intervalMinutes ?? null,
+      intervalMinutes,
       maxRows: row.maxRows ?? null,
     };
   }
@@ -159,7 +204,10 @@ export async function saveRecordingConfig(
   }
 
   if (!isValidIntervalMinutes(input.intervalMinutes) || !isValidMaxRows(input.maxRows)) {
-    return { ok: false, error: `Interval must be a whole number that is at least 5 and a multiple of 5 minutes, and max rows must be between 1 and ${MAX_RECORDING_ROWS}.` };
+    return {
+      ok: false,
+      error: `Interval must be a whole number that is at least ${MIN_RECORDING_INTERVAL_MINUTES} and a multiple of ${RECORDING_INTERVAL_MULTIPLE_MINUTES} minutes, and max rows must be between 1 and ${MAX_RECORDING_ROWS}.`,
+    };
   }
 
   const intervalChanged = !!existing && existing.intervalMinutes !== input.intervalMinutes;
@@ -365,7 +413,14 @@ export async function collectDueRecordingRows(): Promise<{
   let skipped = 0;
 
   for (const cfg of configs) {
-    if (!isValidIntervalMinutes(cfg.intervalMinutes) || !isValidMaxRows(cfg.maxRows)) {
+    const intervalMinutes = await normalizeStoredIntervalForConfig({
+      thingId: cfg.thingId,
+      propertyId: cfg.propertyId,
+      intervalMinutes: cfg.intervalMinutes ?? null,
+      updatedAt: now,
+    });
+
+    if (!isValidIntervalMinutes(intervalMinutes) || !isValidMaxRows(cfg.maxRows)) {
       skipped++;
       continue;
     }
@@ -373,7 +428,7 @@ export async function collectDueRecordingRows(): Promise<{
     if (cfg.lastRecordedAt) {
       const lastSlotAt = floorToCronSlot(cfg.lastRecordedAt);
       const elapsedMs = runSlotAt.getTime() - lastSlotAt.getTime();
-      const dueMs = cfg.intervalMinutes * 60 * 1000;
+      const dueMs = intervalMinutes * 60 * 1000;
       if (elapsedMs < dueMs) {
         skipped++;
         continue;

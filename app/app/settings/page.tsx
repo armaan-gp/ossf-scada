@@ -1,21 +1,24 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
 import { AlertCooldownForm, GmailAccountForm, EmailRecipientsForm } from "@/components/function/EmailAlertConfigForm"
+import { AlertHistoryMaintenanceForm } from "@/components/function/AlertHistoryMaintenanceForm"
 import { AlertThresholdsEditor } from "@/components/function/AlertThresholdsEditor"
 import { getAlertEmailConfig, getDecimalPlacesMap, getGlobalDecimalPlaces, getThresholdsMap } from "@/app/actions/settings"
 import { getAllRecordingConfigsMap } from "@/app/actions/recordings"
+import { getUser } from "@/lib/actions/auth"
 import { getPlcsWithProperties } from "@/lib/plcsWithProperties"
 import { PropertyRecordingEditor } from "@/components/function/PropertyRecordingEditor"
 import { PropertyValueDisplayEditor } from "@/components/function/PropertyValueDisplayEditor"
 
 export default async function SettingsPage() {
-  const [alertEmailConfig, plcs, thresholdsMap, recordingConfigsMap, globalDecimalPlaces, propertyDecimalsMap] = await Promise.all([
+  const [alertEmailConfig, plcs, thresholdsMap, recordingConfigsMap, globalDecimalPlaces, propertyDecimalsMap, user] = await Promise.all([
     getAlertEmailConfig(),
     getPlcsWithProperties().catch(() => []),
     getThresholdsMap(),
     getAllRecordingConfigsMap(),
     getGlobalDecimalPlaces(),
     getDecimalPlacesMap(),
+    getUser(),
   ])
 
   return (
@@ -82,6 +85,18 @@ export default async function SettingsPage() {
 
       <Card className="max-w-2xl mt-6">
         <CardHeader>
+          <CardTitle>Alert history maintenance</CardTitle>
+          <CardDescription>
+            Permanently clear recorded alert history entries used by preview and CSV export.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertHistoryMaintenanceForm canClear={user.isAdmin && user.status === "active"} />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
           <CardTitle>Property value display</CardTitle>
           <CardDescription>
             Choose how many decimal places to show for PLC property values across the site. Set a global value or override specific properties.
@@ -100,7 +115,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Property CSV recording</CardTitle>
           <CardDescription>
-            Toggle recording per property. Interval must be a multiple of 5 minutes (minimum 5), and max rows must be between 1 and 10000 when enabled.
+            Toggle recording per property. Interval must be a multiple of 10 minutes (minimum 10), and max rows must be between 1 and 10000 when enabled.
             Changing interval/max rows or disabling recording clears existing data for that property.
           </CardDescription>
         </CardHeader>

@@ -47,6 +47,8 @@ function toPositiveInt(raw: string): number | null {
 const DATA_RESET_WARNING =
   "This change will delete previously recorded CSV data for this property. Download the current CSV first if you need to keep it. Continue?";
 const MAX_RECORDING_ROWS = 10000;
+const MIN_RECORDING_INTERVAL_MINUTES = 10;
+const RECORDING_INTERVAL_STEP_MINUTES = 10;
 
 export function PropertyRecordingEditor({
   plcs,
@@ -133,13 +135,13 @@ export function PropertyRecordingEditor({
     if (
       intervalMinutes === null ||
       maxRows === null ||
-      intervalMinutes < 5 ||
-      intervalMinutes % 5 !== 0 ||
+      intervalMinutes < MIN_RECORDING_INTERVAL_MINUTES ||
+      intervalMinutes % RECORDING_INTERVAL_STEP_MINUTES !== 0 ||
       maxRows > MAX_RECORDING_ROWS
     ) {
       toast({
         title: "Missing values",
-        description: `Interval must be a whole number that is at least 5 and a multiple of 5 minutes. Max rows must be between 1 and ${MAX_RECORDING_ROWS}.`,
+        description: `Interval must be a whole number that is at least ${MIN_RECORDING_INTERVAL_MINUTES} and a multiple of ${RECORDING_INTERVAL_STEP_MINUTES} minutes. Max rows must be between 1 and ${MAX_RECORDING_ROWS}.`,
         variant: "destructive",
       });
       return;
@@ -232,11 +234,11 @@ export function PropertyRecordingEditor({
                         <Label className="text-xs">Interval (min)</Label>
                         <Input
                           type="number"
-                          min={5}
-                          step={5}
+                          min={MIN_RECORDING_INTERVAL_MINUTES}
+                          step={RECORDING_INTERVAL_STEP_MINUTES}
                           value={draft.interval}
                           onChange={(e) => updateDraft(k, { interval: e.target.value })}
-                          placeholder="5, 10, 15..."
+                          placeholder="10, 20, 30..."
                           className="mt-1"
                           disabled={!draft.enabled || isPending}
                         />

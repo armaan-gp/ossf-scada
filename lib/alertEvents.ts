@@ -226,3 +226,7 @@ export async function buildAlertEventsCsv(): Promise<string> {
 
   return lines.join("\n");
 }
+
+export async function clearAlertEvents(): Promise<void> {
+  await db.delete(alertEventsTable);
+}
