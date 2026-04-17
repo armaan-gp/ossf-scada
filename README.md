@@ -26,46 +26,141 @@ This application lets operators and admins:
 - `forms/` - Zod form schemas.
 
 ## Requirements
-- Node.js 20+
-- npm
-- PostgreSQL database
-- Arduino IoT API client credentials
+Install all of the following before starting:
 
-## Environment Variables
-Set these in `.env.local`:
+1. `git` (for cloning the repository)
+2. Node.js `20.x` (required by `package.json` engines)
+3. `npm` (comes with Node.js)
+4. PostgreSQL database (Neon or self-hosted)
+5. Arduino IoT Cloud API credentials (`client_id` + `client_secret`)
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string used by app and Drizzle push |
-| `SESSION_SECRET` | Yes | Secret for session JWT signing/verification |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Public base URL used to generate invite links (for example, `https://scada.example.com`) |
-| `APP_URL` | Optional fallback | Server-side fallback base URL for invite links if `NEXT_PUBLIC_APP_URL` is not set |
-| `ARDUINO_API_CLIENT_ID` | Yes | Arduino IoT API OAuth client ID |
-| `ARDUINO_API_CLIENT_SECRET` | Yes | Arduino IoT API OAuth client secret |
-| `CRON_SECRET` | Recommended | Bearer token for `/api/alerts/run` and `/api/recordings/run` |
-| `ALERT_EMAIL_ENCRYPTION_KEY` | Recommended | Encryption key for stored Gmail App Password |
-| `ENCRYPTION_KEY` | Optional fallback | Fallback key if `ALERT_EMAIL_ENCRYPTION_KEY` is not set |
+Use these verification commands after install:
 
-## Setup and Run
-1. Create your local environment file:
 ```bash
-cp .env.example .env.local
+git --version
+node --version   # must print v20.x.x
+npm --version
 ```
-2. Fill in `.env.local` with real values.
-3. Install dependencies:
+
+## Detailed Setup (Step-by-Step)
+
+### 1) Clone the repository
+```bash
+git clone <REPOSITORY_URL>
+cd ossf-scada
+```
+
+### 2) Install Node.js dependencies
+From the project root:
+
 ```bash
 npm install
 ```
-4. Apply schema to the database:
+
+This installs runtime packages (Next.js, Drizzle, Arduino API client, Nodemailer, etc.) and dev tooling (TypeScript, ESLint, Drizzle Kit).
+
+### 3) Provision PostgreSQL and create a database URL
+This project uses `DATABASE_URL` for both the app and `drizzle-kit push`.
+
+Accepted formats:
+- Neon/hosted Postgres (recommended):
+  - `postgresql://<user>:<password>@<host>/<db>?sslmode=require`
+- Local Postgres:
+  - `postgresql://<user>:<password>@localhost:5432/<db>`
+
+Quick connectivity check (replace with your real URL):
+
+```bash
+node -e 'const { Client } = require("pg"); const c = new Client({ connectionString: process.env.DATABASE_URL }); c.connect().then(()=>{console.log("DB OK"); return c.end();}).catch((e)=>{console.error("DB FAIL", e.message); process.exit(1);});'
+```
+
+Run that command with `DATABASE_URL` exported first:
+
+```bash
+export DATABASE_URL='postgresql://...'
+```
+
+### 4) Create `.env.local`
+Copy the template:
+
+```bash
+cp .env.example .env.local
+```
+
+Then edit `.env.local` and fill every value:
+
+| Variable | Required | How to set it exactly |
+|---|---|---|
+| `DATABASE_URL` | Yes | Paste your Postgres connection string. |
+| `SESSION_SECRET` | Yes | Generate with `openssl rand -base64 32` and paste output as a single line. |
+| `NEXT_PUBLIC_APP_URL` | Recommended | For local dev set `http://localhost:3000`. In production use your public HTTPS URL. |
+| `APP_URL` | Optional fallback | Usually same as `NEXT_PUBLIC_APP_URL`. |
+| `ARDUINO_API_CLIENT_ID` | Yes | From Arduino IoT Cloud API OAuth application. |
+| `ARDUINO_API_CLIENT_SECRET` | Yes | Matching secret for the Arduino client ID above. |
+| `CRON_SECRET` | Recommended | Generate with `openssl rand -hex 32`. Used to protect `/api/alerts/run` and `/api/recordings/run`. |
+| `ALERT_EMAIL_ENCRYPTION_KEY` | Strongly recommended | Generate with `openssl rand -hex 32`. Keep stable per environment. |
+| `ENCRYPTION_KEY` | Optional fallback | Only needed if `ALERT_EMAIL_ENCRYPTION_KEY` is not set. |
+
+Important notes:
+- Do not commit `.env.local`.
+- Keep `ALERT_EMAIL_ENCRYPTION_KEY` stable. Changing it can make previously saved SMTP app passwords unreadable.
+- If `CRON_SECRET` is set, cron calls must include `Authorization: Bearer <CRON_SECRET>`.
+
+### 5) Push schema to PostgreSQL
+Run:
+
 ```bash
 npm run push
 ```
-5. Start development server:
+
+What this does:
+- Loads `.env.local`
+- Reads schema from `db/schema.ts`
+- Applies tables/enums/constraints to the target database
+
+### 6) Bootstrap initial users (required before first login)
+This app requires users in the `users` table before anyone can sign in.
+
+Bootstrap command:
+
+```bash
+npx tsx lib/createUser.ts
+```
+
+What this script creates:
+- Admin user: `admin@tama.org` / `admins`
+- Standard user: `student@tama.org` / `students`
+
+Critical warning:
+- `lib/createUser.ts` first runs `DELETE` on all existing users.
+- Run this only on a new/empty environment or when you explicitly want to reset users.
+
+### 7) Start the development server
 ```bash
 npm run dev
 ```
-6. Open:
+
+Open:
 - `http://localhost:3000/login`
+
+### 8) Verify setup end-to-end
+1. Visit `http://localhost:3000/login`.
+2. Log in with `admin@tama.org` / `admins` (if you used the bootstrap script).
+3. Confirm `/app` loads.
+4. If Arduino credentials are invalid, dashboard loads with a warning banner that live data is unavailable.
+5. Go to `/app/settings` and configure alert email sender/recipients if email alerts are needed.
+
+### 9) Configure cron jobs (recommended for full behavior)
+Create scheduled calls to:
+- `GET /api/alerts/run`
+- `GET /api/recordings/run`
+
+If `CRON_SECRET` is set, include header:
+- `Authorization: Bearer <CRON_SECRET>`
+
+Without these cron calls:
+- Alert events/emails will not be processed in the background.
+- CSV recording rows will not be collected automatically.
 
 ## Build and Lint
 ```bash
