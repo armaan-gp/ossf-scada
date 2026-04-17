@@ -1,5 +1,7 @@
 "use client";
 
+
+// Threshold management UI for min/max alert bounds per PLC property.
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -87,6 +87,7 @@ export function isArduinoUnauthorizedError(error: unknown): error is ArduinoApiR
 
 // Function to obtain a fresh access token
 async function getToken(): Promise<string> {
+  // Service-to-service token flow; no end-user context is required for IoT API calls.
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: getRequiredEnv("ARDUINO_API_CLIENT_ID"),
@@ -121,6 +122,7 @@ async function getToken(): Promise<string> {
 async function getDevices(): Promise<Device[]> {
   const accessToken = await getToken();
 
+  // Arduino SDK uses a shared singleton client; refresh oauth token before each call.
   const apiClient = ArduinoIoTClient.ApiClient.instance;
   apiClient.authentications['oauth2'].accessToken = accessToken;
 
@@ -157,6 +159,7 @@ async function updateProperty(thingId: string, propertyId: string, value: unknow
   const apiClient = ArduinoIoTClient.ApiClient.instance;
   apiClient.authentications['oauth2'].accessToken = accessToken;
 
+  // Publish writes are proxied through the SDK so payload shape stays SDK-compatible.
   const propertiesApi = new ArduinoIoTClient.PropertiesV2Api(apiClient);
   return propertiesApi.propertiesV2Publish(thingId, propertyId, { value });
 }

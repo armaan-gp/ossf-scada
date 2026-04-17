@@ -1,5 +1,7 @@
 "use client"
 
+
+// Reusable UI primitive wrapper for switch.
 import * as React from "react"
 import * as SwitchPrimitives from "@radix-ui/react-switch"
 

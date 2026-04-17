@@ -1,3 +1,5 @@
+// Root application layout that wires global styles, fonts, and toast notifications.
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";

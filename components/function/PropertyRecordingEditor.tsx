@@ -1,5 +1,7 @@
 "use client";
 
+
+// Settings editor for property-level recording cadence and retention limits.
 import { useEffect, useMemo, useState } from "react";
 import type { PlcWithProperties } from "@/lib/plcsWithProperties";
 import { Button } from "@/components/ui/button";

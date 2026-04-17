@@ -1,3 +1,5 @@
+/* Global Tailwind layers and shared design tokens used throughout the SCADA UI. */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

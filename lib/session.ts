@@ -1,3 +1,5 @@
+// Session cookie helpers for signing, verifying, and clearing auth payloads.
+
 import 'server-only';
 
 import { JWTPayload, jwtVerify, SignJWT } from 'jose';

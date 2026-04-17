@@ -1,5 +1,7 @@
 "use client"
 
+
+// Admin table for reviewing, revoking, and regenerating pending invite links.
 import { Fragment, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

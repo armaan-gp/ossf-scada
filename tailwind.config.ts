@@ -1,3 +1,5 @@
+// Tailwind theme extension and content globs for the SCADA frontend.
+
 import type { Config } from "tailwindcss";
 
 export default {

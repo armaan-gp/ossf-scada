@@ -1,3 +1,5 @@
+// ESLint flat-config bridge for Next.js + TypeScript rules in this workspace.
+
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';

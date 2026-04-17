@@ -1,5 +1,7 @@
 "use client";
 
+
+// Live property grid that polls PLC values and updates alert status in place.
 import { useCallback, useEffect, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { fetchThing } from "@/lib/actions/arduino";

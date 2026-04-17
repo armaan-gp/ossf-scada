@@ -1,3 +1,5 @@
+// Database client bootstrap for Neon + Drizzle in server contexts.
+
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { config } from "dotenv";

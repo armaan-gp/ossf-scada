@@ -1,5 +1,7 @@
 "use client";
 
+
+// CSV preview/download card for historical alert events.
 import { useState } from "react";
 import { getAlertEventsPreview } from "@/app/actions/alerts";
 import { Button } from "@/components/ui/button";

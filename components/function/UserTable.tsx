@@ -1,5 +1,7 @@
 "use client"
 
+
+// Admin table for editing user role/status and handling destructive user actions.
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"

@@ -1,5 +1,7 @@
 "use server";
 
+
+// Server actions for alert history preview/export and maintenance tasks.
 import { revalidatePath } from "next/cache";
 import { getUser } from "@/lib/actions/auth";
 import { clearAlertEvents, getAlertEventRows } from "@/lib/alertEvents";

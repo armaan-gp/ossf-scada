@@ -1,3 +1,5 @@
+// Settings page for thresholds, recording policies, and alert delivery configuration.
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings } from "lucide-react"
 import { AlertCooldownForm, GmailAccountForm, EmailRecipientsForm } from "@/components/function/EmailAlertConfigForm"

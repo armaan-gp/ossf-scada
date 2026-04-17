@@ -1,3 +1,5 @@
+// Helper for loading PLC metadata/properties for settings editors.
+
 import "server-only";
 import { getDevices, getThing } from "@/lib/arduinoInit";
 

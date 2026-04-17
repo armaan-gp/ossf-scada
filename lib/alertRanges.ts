@@ -1,3 +1,5 @@
+// Pure threshold comparison helpers used by alert and recording flows.
+
 export interface PropertyForAlert {
   type: string;
   last_value: unknown;

@@ -1,5 +1,7 @@
 "use client";
 
+
+// Settings forms for SMTP sender credentials, recipients, and cooldown policy.
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

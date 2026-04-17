@@ -1,3 +1,5 @@
+// Background runner that evaluates alerts for all devices during cron execution.
+
 import "server-only";
 
 import { evaluateThingAlerts } from "@/lib/alertEvaluation";
@@ -42,6 +44,7 @@ export async function runAlertProcessing(): Promise<{
   let failedDevices = 0;
 
   for (const device of devices) {
+    // Skip offline devices to avoid unnecessary API calls and noisy failures.
     if (device.device_status !== "ONLINE") continue;
     const thingId = device.thing?.id ?? device.id;
     try {
@@ -57,6 +60,7 @@ export async function runAlertProcessing(): Promise<{
       emailsSent += result.emailsSent;
       emailsFailed += result.emailsFailed;
     } catch (error) {
+      // Continue batch execution even when one device evaluation errors out.
       failedDevices++;
       console.error(`[alerts] failed to evaluate device ${device.id}:`, error);
     }

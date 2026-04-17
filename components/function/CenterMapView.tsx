@@ -1,5 +1,7 @@
 "use client";
 
+
+// Interactive center-map client view for assignment, monitoring, and layout editing.
 import { saveCenterMapLayout, setCenterMapAssignment } from "@/app/actions/centerMap";
 import { getAlertStateForProperties } from "@/app/actions/settings";
 import { FormattedDateTime } from "@/components/FormattedDateTime";
@@ -217,6 +219,7 @@ export function CenterMapView({
       if (polling) return;
       polling = true;
       try {
+        // Poll only currently assigned systems and enrich cards with live properties + alert flags.
         const current = systemStateRef.current;
         const updates = await Promise.all(
           current.map(async (system) => {
@@ -289,6 +292,7 @@ export function CenterMapView({
     };
 
     refreshAssignedSystems();
+    // Lightweight polling keeps map status fresh without full-page reloads.
     const intervalId = setInterval(refreshAssignedSystems, 5000);
     return () => {
       cancelled = true;
@@ -307,6 +311,7 @@ export function CenterMapView({
     const deltaX = ((event.clientX - drag.startX) / rect.width) * 100;
     const deltaY = ((event.clientY - drag.startY) / rect.height) * 100;
 
+    // Draft cards are modeled in percent-based coordinates for responsive map scaling.
     const nextLeft = clamp(drag.originLeft + deltaX, 0, 100 - drag.width);
     const nextTop = clamp(drag.originTop + deltaY, 0, 100 - drag.height);
 
@@ -372,6 +377,7 @@ export function CenterMapView({
 
     const previous = systemState;
     setPendingSystemId(systemId);
+    // Optimistic update keeps assignment UI responsive while server action completes.
     setSystemState((curr) =>
       curr.map((system) =>
         system.id === systemId
@@ -536,6 +542,7 @@ export function CenterMapView({
   }
 
   async function handleSaveLayout() {
+    // Convert local draft IDs into server payload shape (existing numeric IDs vs new rows).
     const payload = draftLocations.map((location, index) => ({
       id: typeof location.id === "number" ? location.id : undefined,
       name: location.label,

@@ -1,5 +1,7 @@
 "use server";
 
+
+// Server actions that proxy Arduino API reads/writes for client components.
 import { getDevices, getDevice, getThing, updateProperty, type ThingProperty } from "@/lib/arduinoInit";
 import { revalidatePath } from "next/cache";
 

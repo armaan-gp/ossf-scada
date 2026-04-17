@@ -1,5 +1,7 @@
 "use client"
 
+
+// Reusable UI primitive wrapper for toaster.
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,

@@ -1,3 +1,5 @@
+// Value formatting helpers for rendering PLC property values consistently.
+
 export function normalizeDisplayValue(value: unknown): string {
   if (value === null || value === undefined) return "N/A";
   if (value instanceof Date) return value.toISOString();

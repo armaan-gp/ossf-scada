@@ -1,5 +1,7 @@
 "use server"
 
+
+// Server actions for user management: invites, user lifecycle, and audit trail records.
 import { randomBytes, createHash } from "crypto"
 import { db } from "@/db"
 import {
@@ -132,6 +134,7 @@ const DEFAULT_PAGE_SIZE = 20
 const INVITE_TTL_HOURS = 72
 
 function hashInviteToken(token: string): string {
+  // Store only a one-way hash so leaked DB rows cannot be used to claim invites.
   return createHash("sha256").update(token).digest("hex")
 }
 
@@ -140,6 +143,7 @@ function getBaseUrl(): string {
 }
 
 async function getAdminActor() {
+  // Centralized guard keeps every admin action consistent and easy to audit.
   const actor = await getUser()
   if (!actor?.isAdmin || actor.status !== "active") {
     return null
@@ -162,6 +166,7 @@ async function createAuditEvent(input: {
   source?: "ui_admin" | "script_seed" | "migration" | "system"
   metadata?: Record<string, unknown>
 }) {
+  // Audit rows are write-only history used for traceability in user management flows.
   await db.insert(userAuditEventsTable).values({
     actorUserId: input.actorUserId,
     targetUserId: input.targetUserId,
@@ -328,6 +333,7 @@ export async function createInvite(input: CreateInviteInput): Promise<ActionResu
   const tokenHash = hashInviteToken(token)
   const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000)
 
+  // Keep at most one active invite per email to avoid parallel invite links.
   await db
     .update(userInvitesTable)
     .set({ revokedAt: new Date() })
@@ -658,6 +664,7 @@ export async function acceptInvite(
   const hashedPassword = await hashPassword(password)
   const now = new Date()
 
+  // Claim the invite atomically so two browser tabs cannot activate the same token.
   const [claimedInvite] = await db
     .update(userInvitesTable)
     .set({ usedAt: now })
@@ -697,7 +704,7 @@ export async function acceptInvite(
       metadataJson: JSON.stringify({ inviteId: invite.id, email: invite.email, role: invite.role }),
     })
   } catch (e) {
-    // Best-effort rollback for invite claim when account creation fails.
+    // Best-effort rollback keeps invite usable if user creation fails after claim.
     await db
       .update(userInvitesTable)
       .set({ usedAt: null })

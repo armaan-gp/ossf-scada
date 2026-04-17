@@ -1,3 +1,5 @@
+// Reusable UI primitive wrapper for skeleton.
+
 import { cn } from "@/lib/utils"
 
 function Skeleton({

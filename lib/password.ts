@@ -1,3 +1,5 @@
+// Password hashing and verification helpers backed by bcrypt.
+
 import bcrypt from 'bcrypt';
 
 export async function hashPassword(password: string): Promise<string> {

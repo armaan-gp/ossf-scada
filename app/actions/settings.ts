@@ -1,5 +1,7 @@
 "use server";
 
+
+// Server actions for alert thresholds, email configuration, and display precision settings.
 import { db } from "@/db";
 import {
   alertEmailConfigTable,
@@ -24,6 +26,7 @@ const DEFAULT_ALERT_COOLDOWN_MINUTES = 60;
 const MIN_ALERT_COOLDOWN_MINUTES = 15;
 
 function normalizeAlertCooldownMinutes(value: number | null | undefined): number {
+  // Clamp bad/missing persisted values to a safe operational default.
   if (typeof value !== "number" || !Number.isInteger(value) || value < MIN_ALERT_COOLDOWN_MINUTES) {
     return DEFAULT_ALERT_COOLDOWN_MINUTES;
   }
@@ -61,6 +64,7 @@ export async function getAlertEmailConfig(): Promise<AlertEmailConfigForm | null
 export async function saveAlertEmailSenderConfig(senderEmail: string, appPassword: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const existing = await db.query.alertEmailConfigTable.findFirst();
+    // Preserve the encrypted password when form submits an empty password field.
     const encryptedPassword = appPassword ? encrypt(appPassword) : (existing?.appPasswordEncrypted ?? "");
 
     const updates = {
@@ -118,6 +122,7 @@ function validateAlertCooldownInput(hours: number, minutes: number): number {
   }
 
   const totalMinutes = (hours * 60) + minutes;
+  // A non-trivial minimum prevents noisy email bursts for rapidly changing values.
   if (totalMinutes < MIN_ALERT_COOLDOWN_MINUTES) {
     throw new Error(`Alert cooldown must be at least ${MIN_ALERT_COOLDOWN_MINUTES} minutes.`);
   }
@@ -168,6 +173,7 @@ export async function getLastTriggeredAt(thingId: string, propertyId: string): P
 }
 
 export async function setLastTriggeredAt(thingId: string, propertyId: string, when: Date): Promise<void> {
+  // Cooldown state is keyed by thing+property so each sensor throttles independently.
   await db.insert(alertCooldownStateTable).values({
     thingId,
     propertyId,
@@ -278,6 +284,7 @@ export async function savePropertyThreshold(
   maxValue: number | null
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    // Upsert so UI can save threshold edits without caring whether a row already exists.
     const existing = await db.query.propertyAlertThresholdsTable.findFirst({
       where: and(
         eq(propertyAlertThresholdsTable.thingId, thingId),
@@ -321,6 +328,7 @@ export async function getAlertStateForProperties(
 }
 
 function normalizeDecimalPlaces(decimalPlaces: number | null): number | null {
+  // Keep precision bounded so formatting remains predictable in charts/tables.
   if (decimalPlaces === null) return null;
   if (!Number.isInteger(decimalPlaces)) {
     throw new Error("Decimal places must be a whole number.");

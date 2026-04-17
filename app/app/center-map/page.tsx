@@ -1,3 +1,5 @@
+// Center-map route that builds location cards from persisted layout and live PLC data.
+
 import { getCenterMapAssignments, getCenterMapLocations } from "@/app/actions/centerMap";
 import { getDecimalPlacesMap, getGlobalDecimalPlaces } from "@/app/actions/settings";
 import { CenterMapView, type CenterMapSystemView } from "@/components/function/CenterMapView";

@@ -1,5 +1,7 @@
 "use server";
 
+
+// Server actions for persisting center-map layout geometry and PLC assignments.
 import { getUser } from "@/lib/actions/auth";
 import { getDevices } from "@/lib/arduinoInit";
 import { db } from "@/db";
@@ -59,6 +61,7 @@ function normalizeLayoutLocation(raw: CenterMapLayoutLocationInput, index: numbe
 
   const leftInput = toFiniteNumber(raw.left);
   const topInput = toFiniteNumber(raw.top);
+  // Keep cards inside the 0-100% canvas coordinates used by the client map.
   const left = clamp(leftInput ?? 0, 0, 100 - width);
   const top = clamp(topInput ?? 0, 0, 100 - height);
 
@@ -132,6 +135,7 @@ export async function saveCenterMapLayout(
       .filter((id) => !incomingIds.has(id));
 
     if (idsToDelete.length > 0) {
+      // Remove assignments first to satisfy FK constraints before deleting locations.
       await db.delete(centerMapAssignmentsTable).where(inArray(centerMapAssignmentsTable.locationId, idsToDelete));
       await db.delete(centerMapLocationsTable).where(inArray(centerMapLocationsTable.id, idsToDelete));
     }
@@ -181,6 +185,7 @@ export async function setCenterMapAssignment(
 
     const nextDeviceId = deviceId?.trim() ? deviceId : null;
     if (nextDeviceId) {
+      // Validate against live Arduino inventory so stale selections cannot be persisted.
       const devices = await getDevices();
       const exists = devices.some((d) => d.id === nextDeviceId);
       if (!exists) {

@@ -1,5 +1,7 @@
 "use client";
 
+
+// Destructive maintenance control for clearing alert history records.
 import { clearAlertHistory } from "@/app/actions/alerts";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";

@@ -1,5 +1,7 @@
 "use server";
 
+
+// Server actions that wrap property recording config and data maintenance operations.
 import { revalidatePath } from "next/cache";
 import {
   clearRecordingData,

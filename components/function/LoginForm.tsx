@@ -1,4 +1,6 @@
 'use client';
+
+// Login form that invokes auth server actions and surfaces validation feedback.
 // Import required components and hooks
 import React, { useActionState } from 'react'
 import { Input } from '@/components/ui/input'

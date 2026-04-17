@@ -1,3 +1,5 @@
+// Drizzle Kit migration configuration for the PostgreSQL schema.
+
 import { config } from "dotenv";
 import { defineConfig } from 'drizzle-kit';
 

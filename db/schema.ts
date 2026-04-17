@@ -1,3 +1,5 @@
+// Drizzle schema definitions for users, alerts, recordings, and map layout tables.
+
 import { integer, pgTable, varchar, boolean, text, timestamp, real, primaryKey, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const userOriginEnum = pgEnum("user_origin", ["invite", "seed", "manual_script", "migration"]);

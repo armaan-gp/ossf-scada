@@ -1,3 +1,5 @@
+// Server-side auth/data-access guards for protected route flows.
+
 import 'server-only';
 import { cookies } from 'next/headers';
 import { decrypt } from './session';

@@ -1,3 +1,5 @@
+// SMTP email helper used by alert processing for outbound notifications.
+
 import "server-only";
 import nodemailer from "nodemailer";
 import { db } from "@/db";
@@ -25,6 +27,7 @@ export async function getAlertEmailConfigForSend() {
   const row = await db.query.alertEmailConfigTable.findFirst();
   if (!row || !row.senderEmail || !row.appPasswordEncrypted) return null;
 
+  // Decrypt only at send time; encrypted form stays at rest in the database.
   const appPassword = decrypt(row.appPasswordEncrypted);
   if (!appPassword) return null;
 
@@ -66,6 +69,7 @@ export async function sendAlertEmail(messageOverride?: string, opts: SendAlertOp
   const body = messageOverride ?? formatMessage(HARDCODED_ALERT_MESSAGE, opts);
 
   try {
+    // Gmail app-password auth is used here; sender/recipients are controlled in Settings.
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,

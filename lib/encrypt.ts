@@ -1,3 +1,5 @@
+// Symmetric encryption helpers for storing sensitive credentials at rest.
+
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 
 const ALGO = "aes-256-cbc";

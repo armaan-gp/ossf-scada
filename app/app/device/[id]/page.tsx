@@ -1,3 +1,5 @@
+// Device detail page showing live properties, alert state, and recording context.
+
 import { ArrowLeft, Activity, Clock, MapPin, Settings } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"

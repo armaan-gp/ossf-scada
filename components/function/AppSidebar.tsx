@@ -1,4 +1,6 @@
 'use client';
+
+// Primary navigation sidebar for app sections and logout control.
 // Import required components and icons
 import {
     Sidebar,

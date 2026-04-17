@@ -1,5 +1,7 @@
 
 
+// Authenticated shell layout with sidebar, top navigation, and user session controls.
+
 import tam_agrilife from '@/images/tamu_agrilife_logo.png'
 
 

@@ -1,5 +1,7 @@
 "use client";
 
+
+// Shared timestamp formatter with timezone-aware browser rendering fallback.
 import { useMemo } from "react";
 import { DEFAULT_TIMEZONE } from "@/lib/dateUtils";
 

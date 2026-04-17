@@ -1,3 +1,5 @@
+// Next.js runtime/build configuration overrides for this application.
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {

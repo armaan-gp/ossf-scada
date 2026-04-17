@@ -1,3 +1,5 @@
+// Main dashboard page summarizing PLC health and active alert counts.
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table"

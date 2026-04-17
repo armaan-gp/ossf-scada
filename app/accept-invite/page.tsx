@@ -1,3 +1,5 @@
+// Invite acceptance route that validates invite tokens and activates accounts.
+
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AcceptInviteForm } from "@/components/function/AcceptInviteForm"

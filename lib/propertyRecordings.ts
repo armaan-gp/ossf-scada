@@ -1,3 +1,5 @@
+// Recording domain logic: configuration validation, snapshot collection, and CSV generation.
+
 import "server-only";
 
 import { db } from "@/db";
@@ -68,6 +70,7 @@ const CRON_BASE_INTERVAL_MINUTES = 1;
 const CRON_BASE_INTERVAL_MS = CRON_BASE_INTERVAL_MINUTES * 60 * 1000;
 
 function floorToCronSlot(date: Date): Date {
+  // Align to cron slots so interval checks are stable across tiny scheduler delays.
   const slotMs = Math.floor(date.getTime() / CRON_BASE_INTERVAL_MS) * CRON_BASE_INTERVAL_MS;
   return new Date(slotMs);
 }
@@ -93,6 +96,7 @@ async function normalizeStoredIntervalForConfig(input: {
   intervalMinutes: number | null;
   updatedAt?: Date;
 }): Promise<number | null> {
+  // Opportunistically migrate legacy interval values to the current cadence rules.
   const normalized = normalizeLegacyIntervalMinutes(input.intervalMinutes);
   if (normalized === input.intervalMinutes || normalized === null) return normalized;
 
@@ -166,6 +170,7 @@ export async function saveRecordingConfig(
   const reset = input.resetExistingData === true;
 
   if (!input.enabled) {
+    // Protect users from accidentally hiding historic data by forcing explicit reset intent.
     if (!reset && existing?.enabled) {
       return {
         ok: false,
@@ -214,6 +219,7 @@ export async function saveRecordingConfig(
   const maxRowsChanged = !!existing && existing.maxRows !== input.maxRows;
   const dataResetRequired = intervalChanged || maxRowsChanged;
 
+  // Existing rows reflect old sampling rules; require reset before changing schema-like knobs.
   if (!reset && dataResetRequired) {
     return {
       ok: false,
@@ -390,6 +396,7 @@ async function trimRowsToMax(thingId: string, propertyId: string, maxRows: numbe
     .orderBy(desc(propertyRecordingRowsTable.recordedAt), desc(propertyRecordingRowsTable.id));
 
   if (rows.length <= maxRows) return;
+  // Keep newest rows and prune historical overflow in one delete.
   const staleIds = rows.slice(maxRows).map((r) => r.id);
   if (staleIds.length === 0) return;
 
@@ -429,6 +436,7 @@ export async function collectDueRecordingRows(): Promise<{
       const lastSlotAt = floorToCronSlot(cfg.lastRecordedAt);
       const elapsedMs = runSlotAt.getTime() - lastSlotAt.getTime();
       const dueMs = intervalMinutes * 60 * 1000;
+      // Skip until the configured interval fully elapses from the last recorded slot.
       if (elapsedMs < dueMs) {
         skipped++;
         continue;
@@ -477,6 +485,7 @@ export async function collectDueRecordingRows(): Promise<{
       alertCount: inAlert ? 1 : 0,
     });
 
+    // Enforce retention immediately so per-property row counts stay bounded.
     await trimRowsToMax(cfg.thingId, cfg.propertyId, cfg.maxRows);
 
     await db

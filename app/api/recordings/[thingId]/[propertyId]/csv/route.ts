@@ -1,3 +1,5 @@
+// CSV export endpoint for one property recording stream.
+
 import { buildRecordingCsv } from "@/lib/propertyRecordings";
 
 function sanitizeName(value: string): string {

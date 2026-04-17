@@ -1,3 +1,5 @@
+// Audit activity feed showing recent user-management actions.
+
 import type { UserAuditListItem } from "@/app/actions/admin"
 
 interface RecentUserActivityProps {

@@ -1,5 +1,7 @@
 'use client';
 
+
+// Lightweight top navigation bar for authenticated app pages.
 import { SidebarTrigger } from "../ui/sidebar"
 import { User } from "@/db/schema";
 

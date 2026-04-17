@@ -1,3 +1,5 @@
+// CSV export endpoint for historical alert events.
+
 import { buildAlertEventsCsv } from "@/lib/alertEvents";
 
 export async function GET() {

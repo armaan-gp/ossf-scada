@@ -1,5 +1,7 @@
 "use client"
 
+
+// Global toast state container and imperative toast dispatch helper.
 // Inspired by react-hot-toast library
 import * as React from "react"
 

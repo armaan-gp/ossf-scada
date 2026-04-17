@@ -1,3 +1,5 @@
+// Route guard middleware that redirects users based on session presence.
+
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from './lib/session'
 

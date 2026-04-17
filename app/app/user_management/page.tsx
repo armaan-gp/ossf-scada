@@ -1,3 +1,5 @@
+// Admin-only user management page for users, invites, and audit activity.
+
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

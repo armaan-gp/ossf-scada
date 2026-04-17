@@ -1,4 +1,6 @@
 'use server';
+
+// Authentication server actions for login/logout and current-user lookup.
 import { loginFormSchema } from '@/forms/login';
 import { redirect } from 'next/navigation';
 import { createSession, deleteSession } from '../session';

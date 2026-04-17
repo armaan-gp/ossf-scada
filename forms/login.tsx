@@ -1,3 +1,5 @@
+// Zod validation schema for the login form payload.
+
 import { z } from 'zod'
 
 export const loginFormSchema = z.object({

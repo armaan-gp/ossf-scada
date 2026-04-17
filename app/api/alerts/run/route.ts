@@ -1,3 +1,5 @@
+// Cron endpoint that evaluates active alerts and triggers side effects.
+
 import { runAlertProcessing } from "@/lib/alertBackgroundRunner";
 
 export async function GET(request: Request) {

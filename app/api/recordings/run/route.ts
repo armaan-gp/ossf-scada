@@ -1,3 +1,5 @@
+// Cron endpoint that records due property snapshots.
+
 import { collectDueRecordingRows } from "@/lib/propertyRecordings";
 
 export async function GET(request: Request) {

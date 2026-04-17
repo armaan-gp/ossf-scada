@@ -1,3 +1,5 @@
+// Alert event persistence and export helpers, including active-episode tracking.
+
 import "server-only";
 
 import { db } from "@/db";
@@ -50,6 +52,7 @@ async function getAlertDecimalFormattingContext(): Promise<{
   globalDecimalPlaces: number | null;
   perPropertyDecimalMap: Map<string, number | null>;
 }> {
+  // Load once per request to avoid repeated settings lookups while formatting many rows.
   const [overrideRows, globalRow] = await Promise.all([
     db.select().from(propertyDisplayOverridesTable),
     db.query.propertyDisplaySettingsTable.findFirst(),
@@ -70,6 +73,7 @@ function formatAlertValue(
   row: Pick<AlertEventView, "thingId" | "propertyId" | "propertyType" | "valueRaw">,
   ctx: { globalDecimalPlaces: number | null; perPropertyDecimalMap: Map<string, number | null> }
 ): string {
+  // Per-property override wins; otherwise fallback to global precision setting.
   const decimalPlaces =
     ctx.perPropertyDecimalMap.get(`${row.thingId}:${row.propertyId}`) ?? ctx.globalDecimalPlaces;
   return isFloatType(row.propertyType)
@@ -84,6 +88,7 @@ async function trimAlertEventsToMax(maxRows: number): Promise<void> {
     .orderBy(desc(alertEventsTable.occurredAt), desc(alertEventsTable.id));
 
   if (rows.length <= maxRows) return;
+  // Prune oldest rows to cap table size and keep exports/snappy queries predictable.
   const staleIds = rows.slice(maxRows).map((r) => r.id);
   if (staleIds.length === 0) return;
   await db.delete(alertEventsTable).where(inArray(alertEventsTable.id, staleIds));
@@ -97,6 +102,7 @@ export async function markAlertEpisodeActive(input: {
   propertyType: string;
   now?: Date;
 }): Promise<{ isNew: boolean }> {
+  // Active episodes deduplicate repeated out-of-range polls into one logical alert run.
   const now = input.now ?? new Date();
   const existing = await db.query.activeAlertEpisodesTable.findFirst({
     where: and(
@@ -153,6 +159,7 @@ export async function recordAlertEvent(input: {
   value: unknown;
   occurredAt?: Date;
 }): Promise<void> {
+  // Store raw values exactly as seen; formatting decisions are deferred to read time.
   await db.insert(alertEventsTable).values({
     thingId: input.thingId,
     thingName: input.thingName,

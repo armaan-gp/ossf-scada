@@ -1,3 +1,5 @@
+// Core alert engine that evaluates thresholds and triggers event/email side effects.
+
 import "server-only";
 import { getThing } from "@/lib/arduinoInit";
 import { isPropertyInAlert } from "@/lib/alertRanges";
@@ -40,6 +42,7 @@ export async function evaluateThingAlerts(
   let emailsFailed = 0;
   const shouldTrackAlertEvents = options.trackAlertEvents === true;
   const shouldSendEmails = options.sendEmailsForNewAlerts === true;
+  // Avoid extra DB reads when caller only needs inline alert state for rendering.
   const shouldWriteSideEffects = shouldTrackAlertEvents || shouldSendEmails;
   const cooldownMinutes = shouldWriteSideEffects ? await getAlertCooldownMinutes() : 0;
 
@@ -68,6 +71,7 @@ export async function evaluateThingAlerts(
         });
 
         if (episode.isNew) {
+          // Cooldown applies only when a new alert episode starts, not every poll tick.
           const now = new Date();
           const lastTriggeredAt = await getLastTriggeredAt(thingId, prop.id);
           const inCooldown = lastTriggeredAt !== null
@@ -104,6 +108,7 @@ export async function evaluateThingAlerts(
         }
       }
     } else {
+      // Clear active episode state once value returns to normal range.
       if (shouldWriteSideEffects) await clearAlertEpisode(thingId, prop.id);
       alerts.push({ propertyId: prop.id, inAlert: false, name: prop.name ?? prop.variable_name });
     }

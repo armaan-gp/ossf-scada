@@ -1,3 +1,5 @@
+// Client hook that tracks the mobile breakpoint for responsive behavior.
+
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768

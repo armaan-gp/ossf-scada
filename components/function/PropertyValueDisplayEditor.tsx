@@ -1,5 +1,7 @@
 "use client";
 
+
+// Settings editor for global/per-property numeric display precision.
 import { saveGlobalDecimalPlaces, savePropertyDecimalPlaces } from "@/app/actions/settings";
 import { useToast } from "@/hooks/use-toast";
 import type { PlcWithProperties } from "@/lib/plcsWithProperties";

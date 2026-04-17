@@ -1,3 +1,5 @@
+// Local mobile breakpoint hook used by shared UI primitives.
+
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768

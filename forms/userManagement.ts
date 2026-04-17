@@ -1,3 +1,5 @@
+// Zod schemas for invite creation and invite acceptance forms.
+
 import { z } from "zod";
 
 export const createInviteFormSchema = z.object({
